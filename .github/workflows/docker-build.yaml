@@ -57,7 +57,7 @@ jobs:
         if: github.event_name != 'pull_request'
         with:
           registry: dkr.fraq.dev
-          username: ${{ secrets.DKR_FRAQ_DEV_USERNAME }}
+          username: ${{ secrets.DKR_FRAQ_DEV_USER }}
           password: ${{ secrets.DKR_FRAQ_DEV_TOKEN }}
       -
         name: Build and push
