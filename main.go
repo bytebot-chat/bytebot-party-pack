@@ -22,6 +22,13 @@ func init() {
 
 func main() {
 	flag.Parse()
+
+	log.Info().Msg("Bytebot Party Pack starting up!")
+	log.Info().Msg("Bytebot Party Pack starting with the following configs:")
+	log.Info().Msg("Redis address: " + *addr)
+	log.Info().Msg("Inbound queue: " + *inbound)
+	log.Info().Msg("Outbound queue: " + *outbound)
+
 	ctx := context.Background()
 
 	rdb := redis.NewClient(&redis.Options{
