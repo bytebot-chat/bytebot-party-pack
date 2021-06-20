@@ -8,11 +8,17 @@ import (
 
 	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var addr = flag.String("redis", "localhost:6379", "Redis server address")
 var inbound = flag.String("inbound", "irc-inbound", "Pubsub queue to listen for new messages")
 var outbound = flag.String("outbound", "irc", "Pubsub queue for sending messages outbound")
+
+func init() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+}
 
 func main() {
 	flag.Parse()
@@ -35,6 +41,7 @@ func main() {
 	topic := rdb.Subscribe(ctx, *inbound)
 	channel := topic.Channel()
 	for msg := range channel {
+		log.Print(msg.Payload)
 		m := &model.Message{}
 		err := m.Unmarshal([]byte(msg.Payload))
 		if err != nil {
