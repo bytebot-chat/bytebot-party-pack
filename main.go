@@ -2,15 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/bbriggs/bytebot-irc/model"
+	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
-	"github.com/satori/go.uuid"
 )
 
 var addr = flag.String("redis", "localhost:6379", "Redis server address")
@@ -46,20 +43,13 @@ func main() {
 		fmt.Printf("%+v\n", m)
 		if m.Content == "!epeen" {
 			reply(ctx, *m, rdb, epeen(m.From))
+		} else {
+			// Trigger doing it's own treatment of the message
+			answer, activated := reactions(*m)
+			if activated {
+				reply(ctx, *m, rdb, answer)
+			}
 		}
-	}
-}
 
-func reply(ctx context.Context, m model.Message, rdb *redis.Client, reply string) {
-	if !strings.HasPrefix(m.To, "#") { // DMs go back to source, channel goes back to channel
-		m.To = m.From
 	}
-	m.From = ""
-	m.Metadata.Dest = m.Metadata.Source
-	m.Metadata.Source = "hello-world"
-	m.Content = reply
-	m.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
-	stringMsg, _ := json.Marshal(m)
-	rdb.Publish(ctx, *outbound, stringMsg)
-	return
 }
