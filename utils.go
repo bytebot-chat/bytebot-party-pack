@@ -7,6 +7,7 @@ import (
 
 	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog/log"
 	"github.com/satori/go.uuid"
 )
 
@@ -21,5 +22,10 @@ func reply(ctx context.Context, m model.Message, rdb *redis.Client, reply string
 	m.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
 	stringMsg, _ := json.Marshal(m)
 	rdb.Publish(ctx, *outbound, stringMsg)
+
+	log.Debug().
+		RawJSON("message", stringMsg).
+		Msg("Reply")
+
 	return
 }
