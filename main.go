@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"time"
 
 	"github.com/bytebot-chat/gateway-irc/model"
@@ -23,11 +22,11 @@ func init() {
 func main() {
 	flag.Parse()
 
-	log.Info().Msg("Bytebot Party Pack starting up!")
-	log.Info().Msg("Bytebot Party Pack starting with the following configs:")
-	log.Info().Msg("Redis address: " + *addr)
-	log.Info().Msg("Inbound queue: " + *inbound)
-	log.Info().Msg("Outbound queue: " + *outbound)
+	log.Info().
+		Str("Redis address", *addr).
+		Str("Inbound queue", *inbound).
+		Str("Outbound queue", *outbound).
+		Msg("Bytebot Party Pack starting up!")
 
 	ctx := context.Background()
 
@@ -38,23 +37,29 @@ func main() {
 
 	err := rdb.Ping(ctx).Err()
 	if err != nil {
+		log.Warn().Msg("Ping timeout, trying to connect to redis again...")
 		time.Sleep(3 * time.Second)
 		err := rdb.Ping(ctx).Err()
 		if err != nil {
-			panic(err)
+			log.Fatal().Err(err).
+				Msg("Couldn't connect to redis server")
 		}
 	}
 
 	topic := rdb.Subscribe(ctx, *inbound)
 	channel := topic.Channel()
 	for msg := range channel {
-		log.Print(msg.Payload)
 		m := &model.Message{}
 		err := m.Unmarshal([]byte(msg.Payload))
 		if err != nil {
-			fmt.Println(err)
+			log.Error().
+				Str("message payload", msg.Payload).
+				Err(err)
 		}
-		fmt.Printf("%+v\n", m)
+		log.Debug().
+			RawJSON("Received message", []byte(msg.Payload)).
+			Msg("Received message")
+
 		if m.Content == "!epeen" {
 			reply(ctx, *m, rdb, epeen(m.From))
 		} else {
