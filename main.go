@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"sync"
 	"time"
 
 	"github.com/bytebot-chat/gateway-irc/model"
@@ -11,12 +12,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var ircInbound stringArrayFlags
+var ircOutbound stringArrayFlags
+
 var addr = flag.String("redis", "localhost:6379", "Redis server address")
-var inbound = flag.String("inbound", "irc-inbound", "Pubsub queue to listen for new messages")
-var outbound = flag.String("outbound", "irc", "Pubsub queue for sending messages outbound")
 
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
+	flag.Var(&ircInbound, "irc-inbound", "IRC topic to listen to. May be repeated. Example: -irc-inbound=irc1 -irc-inbound=irc2")
+	flag.Var(&ircOutbound, "irc-outbound", "IRC topic to publish to. May be repeated. Example: -irc-outbound=irc1 -irc-outbound=irc2")
 }
 
 func main() {
@@ -24,8 +29,6 @@ func main() {
 
 	log.Info().
 		Str("Redis address", *addr).
-		Str("Inbound queue", *inbound).
-		Str("Outbound queue", *outbound).
 		Msg("Bytebot Party Pack starting up!")
 
 	ctx := context.Background()
@@ -46,8 +49,23 @@ func main() {
 		}
 	}
 
-	topic := rdb.Subscribe(ctx, *inbound)
-	channel := topic.Channel()
+	log.Info().Msg("Subscribing to topics...")
+	var wg sync.WaitGroup
+	for _, topic := range ircInbound {
+		log.Info().Msg("Launching worker for " + topic + "...")
+		wg.Add(1)
+		go subscribeIRC(ctx, &wg, rdb, topic)
+	}
+	log.Info().Msg("Workers launched. Listening for messages.")
+	wg.Wait()
+}
+
+func subscribeIRC(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, topic string) {
+	defer wg.Done()
+	log.Info().Msg("Subscribing to " + topic)
+	sub := rdb.Subscribe(ctx, topic)
+	log.Info().Msg("Subscribed!")
+	channel := sub.Channel()
 	for msg := range channel {
 		m := &model.Message{}
 		err := m.Unmarshal([]byte(msg.Payload))
@@ -61,14 +79,13 @@ func main() {
 			Msg("Received message")
 
 		if m.Content == "!epeen" {
-			reply(ctx, *m, rdb, epeen(m.From))
+			reply(ctx, *m, rdb, topic, epeen(m.From))
 		} else {
 			// Trigger doing it's own treatment of the message
 			answer, activated := reactions(*m)
 			if activated {
-				reply(ctx, *m, rdb, answer)
+				reply(ctx, *m, rdb, topic, answer)
 			}
 		}
-
 	}
 }
