@@ -54,13 +54,13 @@ func main() {
 	for _, topic := range ircInbound {
 		log.Info().Msg("Launching worker for " + topic + "...")
 		wg.Add(1)
-		go subscribeIRC(ctx, &wg, rdb, topic)
+		go subscribeIRC(ctx, &wg, rdb, topic, ircOutbound)
 	}
 	log.Info().Msg("Workers launched. Listening for messages.")
 	wg.Wait()
 }
 
-func subscribeIRC(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, topic string) {
+func subscribeIRC(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, topic string, outbound []string) {
 	defer wg.Done()
 	log.Info().Msg("Subscribing to " + topic)
 	sub := rdb.Subscribe(ctx, topic)
@@ -79,12 +79,16 @@ func subscribeIRC(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, to
 			Msg("Received message")
 
 		if m.Content == "!epeen" {
-			reply(ctx, *m, rdb, topic, epeen(m.From))
+			for _, q := range outbound {
+				reply(ctx, *m, rdb, q, epeen(m.From))
+			}
 		} else {
 			// Trigger doing it's own treatment of the message
 			answer, activated := reactions(*m)
 			if activated {
-				reply(ctx, *m, rdb, topic, answer)
+				for _, q := range outbound {
+					reply(ctx, *m, rdb, q, answer)
+				}
 			}
 		}
 	}
