@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"strings"
 	"sync"
 	"time"
 
@@ -81,6 +82,10 @@ func subscribeIRC(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, to
 		if m.Content == "!epeen" {
 			for _, q := range outbound {
 				reply(ctx, *m, rdb, q, epeen(m.From))
+			}
+		} else if strings.HasPrefix(m.Content, "!8ball") {
+			for _, q := range outbound {
+				reply(ctx, *m, rdb, q, make8BallAnswer())
 			}
 		} else {
 			// Trigger doing it's own treatment of the message
