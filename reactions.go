@@ -2,13 +2,15 @@ package main
 
 import (
 	"github.com/bytebot-chat/gateway-irc/model"
+	"strings"
 )
 
 func reactions(message model.Message) (string, bool) {
 	// Passing message and not only content to allow
 	// for some funky stuff later like redirections and all.
 	reactionContent := ""
-	switch message.Content {
+	switchToken := strings.Split(message.Content, " ")[0]
+	switch switchToken {
 	case "!shrug":
 		reactionContent = "¯\\_(ツ)_/¯"
 	case "!lenny":
@@ -21,6 +23,8 @@ func reactions(message model.Message) (string, bool) {
 		reactionContent = make8BallAnswer()
 	case "!epeen":
 		reactionContent = epeen(message.From)
+	case "!ipinfo":
+		reactionContent = ipinfo(message.Content)
 	}
 
 	return reactionContent, reactionContent != ""
