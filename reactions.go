@@ -17,6 +17,10 @@ func reactions(message model.Message) (string, bool) {
 		reactionContent = "(╯°□°)╯︵ ┻━┻"
 	case "!tablefix":
 		reactionContent = "┬─┬ノ( º _ ºノ)"
+	case "!8ball":
+		reactionContent = make8BallAnswer()
+	case "!epeen":
+		reactionContent = epeen(message.From)
 	}
 
 	return reactionContent, reactionContent != ""
