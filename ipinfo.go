@@ -68,10 +68,10 @@ func ipLookup(ip string) string {
 	if err != nil {
 		sublogger.Warn().Err(err).Msg("IPInfo trigger, request's body was closed improperly")
 	}
-	return decodeJSON(jsonData, sublogger)
+	return decodeIPInfoJSON(jsonData, sublogger)
 }
 
-func decodeJSON(encodedJSON []byte, logger zerolog.Logger) string {
+func decodeIPInfoJSON(encodedJSON []byte, logger zerolog.Logger) string {
 	var (
 		ipinfo geoData
 		reply  string
