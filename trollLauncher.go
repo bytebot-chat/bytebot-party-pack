@@ -9,7 +9,7 @@ func troll(nick, msg string) string {
 	const TROLL_USAGE = "Usage: !troll <nick>"
 	
 	msg = strings.Trim(msg, "!troll ")
-	if len(msg) > 1 || < 1 {
+	if (len(msg) > 1 || < 1) {
 		return TROLL_USAGE
 	}
 
