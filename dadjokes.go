@@ -2,8 +2,8 @@ package main
 
 import (
 	"errors"
-	"net/http"
 	"io/ioutil"
+	"net/http"
 	"strconv"
 
 	"github.com/rs/zerolog/log"
@@ -14,18 +14,18 @@ func dadjoke() string {
 }
 
 func httpRequest() string {
-	
+
 	// instantiate Zerolog sublogger
 	sublogger := log.With().
 		Str("trigger", "dadjoke").
 		Logger()
-	
+
 	// define dadjoke url and userAgent
 	url := "https://icanhazdadjoke.com/"
 	userAgent := "bytebot-party-pack, an IRC microservice bot funpack thingy. https://github.com/bytebot-chat/bytebot-party-pack/"
 
 	req, err := http.NewRequest("GET", url, nil) // crafting HTTP request with url and userAgent
-	if err != nil { // if err, loggging error via Zerolog and returning error to chat
+	if err != nil {                              // if err, loggging error via Zerolog and returning error to chat
 		sublogger.Warn().Err(err).Msg("HTTP request formatting error")
 		return "An error occurred: " + err.Error()
 	}
@@ -34,7 +34,7 @@ func httpRequest() string {
 
 	client := http.Client{}
 	resp, err := client.Do(req)
-	if err != nil { 
+	if err != nil {
 		sublogger.Warn().Err(err).Msg("HTTP request error")
 		return "An error occurred: " + err.Error()
 	}
