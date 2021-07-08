@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"strings"
 )
@@ -10,7 +9,7 @@ func troll(nick, msg string) string {
 	const TROLL_USAGE = "Usage: !troll <nick>"
 	
 	msg = strings.Trim(msg, "!troll ")
-	if len(msg) == nil {
+	if len(msg) > 1 || < 1 {
 		return TROLL_USAGE
 	}
 
@@ -27,7 +26,7 @@ func troll(nick, msg string) string {
 	return nick + " fires " + numTrolls + " at " + target + ", dealing " + dmg + " points of " + dmgType + " damage!"
 }
 
-func launchTrolls() (numTrolls, dmg, dmgType) {
+func launchTrolls() (numTrolls, dmg, dmgType string) {
 	damage_type := [13]string{"bludgeoning", "piercing", "slashing", "cold", "fire", "acid", "poison",
 	"psychic", "necrotic", "radiant", "lightning", "thunder", "force"}
 
@@ -41,7 +40,7 @@ func launchTrolls() (numTrolls, dmg, dmgType) {
 	return string(trolls), dmg, damage_type[rand.Intn(12)]
 }
 
-func trollDamage (trolls) string {
+func trollDamage (trolls int) string {
 	i := 0
 	trollDmg := 0
 	for i < trolls {
