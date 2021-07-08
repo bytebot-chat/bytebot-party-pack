@@ -9,7 +9,7 @@ func troll(nick, msg string) string {
 	const TROLL_USAGE = "Usage: !troll <nick>"
 	
 	msg = strings.Trim(msg, "!troll ")
-	if (len(msg) > 1 || < 1) {
+	if (len(msg) > 1 || len(msg) < 1) {
 		return TROLL_USAGE
 	}
 
@@ -35,7 +35,7 @@ func launchTrolls() (numTrolls, dmg, dmgType string) {
 		return ""
 	}
 	
-	dmg := trollDamage(trolls)
+	dmg = trollDamage(trolls)
 
 	return string(trolls), dmg, damage_type[rand.Intn(12)]
 }
