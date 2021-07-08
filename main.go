@@ -5,12 +5,12 @@ import (
 	"flag"
 	"sync"
 	"time"
-	
+
 	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
+	"github.com/justinian/dice"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/justinian/dice"
 )
 
 var ircInbound stringArrayFlags

@@ -18,7 +18,7 @@ func dice(nick, r string) string {
 // function invoking dice library
 func roll(r) string {
 	res, _, err := dice.Roll(r)
-	
+
 	// if there's an error, return the DICE_USAGE const and log the error
 	if err != nil {
 		return DICE_USAGE
