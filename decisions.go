@@ -5,13 +5,6 @@ import (
 	"strings"
 )
 
-package main
-
-import (
-	"math/rand"
-	"strings"
-)
-
 func decisions(nick, msg string) string {
 
 	choice := choose(msg)
@@ -27,9 +20,9 @@ func decisions(nick, msg string) string {
 
 // the actual choose function
 func choose(msg string) string {
-	msg = strings.Trim(msg, "!choose ") // remove !choose trigger from the msg string
-	choices := strings.Split(msg, " or ") // split on " or " 
-	
+	msg = strings.Trim(msg, "!choose ")   // remove !choose trigger from the msg string
+	choices := strings.Split(msg, " or ") // split on " or "
+
 	// if the array has less than 2 elements (choices), return null
 	if len(choices) < 2 {
 		return ""
