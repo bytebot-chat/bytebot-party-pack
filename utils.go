@@ -8,7 +8,7 @@ import (
 	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog/log"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 func reply(ctx context.Context, m model.Message, rdb *redis.Client, topic, reply string) {
