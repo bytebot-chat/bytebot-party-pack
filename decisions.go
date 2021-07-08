@@ -19,7 +19,7 @@ func decisions(nick, msg string) string {
 }
 
 // the actual choose function
-func choose(msg) string {
+func choose(msg string) string {
 	msg = strings.Trim(msg, "!choose ") // remove !choose trigger from the msg string
 	choices := strings.Split(msg, " or ") // split on " or " 
 	
