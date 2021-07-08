@@ -8,5 +8,4 @@ require (
 	github.com/rs/zerolog v1.23.0
 	github.com/satori/go.uuid v1.2.0
 	go.opentelemetry.io/otel/internal/metric v0.21.0 // indirect
-	github.com/justinian/dice
 )
