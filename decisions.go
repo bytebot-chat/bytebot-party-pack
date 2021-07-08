@@ -28,7 +28,7 @@ func decisions(nick, msg string) string {
 // the actual choose function
 func choose(msg) string {
 	msg = strings.Trim(msg, "!choose ") // remove !choose trigger from the msg string
-	m := strings.Split(msg, " or ") // split on " or " 
+	choices := strings.Split(msg, " or ") // split on " or " 
 	
 	// if the array has less than 2 elements (choices), return null
 	if len(choices) < 2 {
