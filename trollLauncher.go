@@ -32,7 +32,7 @@ func launchTrolls() (numTrolls, dmg, dmgType string) {
 
 	trolls := rand.Intn(10)
 	if trolls == 0 {
-		return ""
+		return _, "", _
 	}
 	
 	dmg = trollDamage(trolls)
