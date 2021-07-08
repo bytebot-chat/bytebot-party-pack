@@ -1,9 +1,8 @@
 package main
 
 import (
-	"strings"
-
 	"github.com/bytebot-chat/gateway-irc/model"
+	"strings"
 )
 
 func reactions(message model.Message) (string, bool) {
@@ -26,8 +25,6 @@ func reactions(message model.Message) (string, bool) {
 		reactionContent = epeen(message.From)
 	case "!ipinfo":
 		reactionContent = ipinfo(message.Content)
-	case "!choose":
-		reactionContent = choose(message.From, message.Content)
 	}
 
 	return reactionContent, reactionContent != ""
