@@ -28,7 +28,8 @@ func troll(nick, msg string) string {
 }
 
 func launchTrolls() (numTrolls, dmg, dmgType) {
-	damage_type := [13]string{"bludgeoning", "piercing", "slashing", "cold", "fire", "acid", "poison", "psychic", "necrotic", "radiant", "lightning", "thunder", "force"}
+	damage_type := [13]string{"bludgeoning", "piercing", "slashing", "cold", "fire", "acid", "poison",
+	"psychic", "necrotic", "radiant", "lightning", "thunder", "force"}
 
 	trolls := rand.Intn(10)
 	if trolls == 0 {
