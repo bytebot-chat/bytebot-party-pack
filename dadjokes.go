@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"net/http"
 	"io/ioutil"
 	"strconv"
@@ -27,7 +26,7 @@ func httpRequest() string {
 
 	req, err := http.NewRequest("GET", url, nil) // crafting HTTP request with url and userAgent
 	if err != nil { // if err, loggging error via Zerolog and returning error to chat
-		sublogger.Warn().Err(err).Msg("HTTP request formatting error: %s", err)
+		sublogger.Warn().Err(err).Msg("HTTP request formatting error")
 		return "An error occurred: " + err
 	}
 
@@ -36,7 +35,7 @@ func httpRequest() string {
 	client := http.Client{}
 	resp, err := client.Do(req)
 	if err != nil { 
-		sublogger.Warn().Err(err).Msg("HTTP request error: %s", err)
+		sublogger.Warn().Err(err).Msg("HTTP request error")
 		return "An error occurred: " + err
 	}
 	defer resp.Body.Close() // closing the request body as required by net/http
@@ -46,9 +45,10 @@ func httpRequest() string {
 		err = errors.New(
 			"resp.StatusCode: " +
 				statusCode)
-		sublogger.Warn().Err(err).Msg("HTTP status code: %s", statusCode)
+		sublogger.Warn().Err(err).Msg("HTTP status code")
 		return "Error: HTTP Status Code " + statusCode
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	r := ioutil.ReadAll(resp.Body)
+	return string(r)
 }
