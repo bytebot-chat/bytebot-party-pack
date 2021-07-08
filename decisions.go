@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func choose(nick string, msg string) string {
+func choose(nick, msg string) string {
 
 	choices := strings.Split(msg, "or") // declaring the choices array and splitting the msg content into parts
 
