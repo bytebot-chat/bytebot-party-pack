@@ -7,9 +7,9 @@ import (
 
 func troll(nick, msg string) string {
 	const TROLL_USAGE = "Usage: !troll <nick>"
-	
+
 	msg = strings.Trim(msg, "!troll ")
-	if (len(msg) > 1 || len(msg) < 1) {
+	if len(msg) > 1 || len(msg) < 1 {
 		return TROLL_USAGE
 	}
 
@@ -17,10 +17,10 @@ func troll(nick, msg string) string {
 	numTrolls, dmg, dmgType := launchTrolls()
 
 	switch dmg {
-		case "":
-			return "The troll launcher has malfunctioned."
-		case "miss":
-			return "Wha?! The trolls missed! That, like, never happens!"
+	case "":
+		return "The troll launcher has malfunctioned."
+	case "miss":
+		return "Wha?! The trolls missed! That, like, never happens!"
 	}
 
 	return nick + " fires " + numTrolls + " at " + target + ", dealing " + dmg + " points of " + dmgType + " damage!"
@@ -28,19 +28,19 @@ func troll(nick, msg string) string {
 
 func launchTrolls() (numTrolls, dmg, dmgType string) {
 	damage_type := [13]string{"bludgeoning", "piercing", "slashing", "cold", "fire", "acid", "poison",
-	"psychic", "necrotic", "radiant", "lightning", "thunder", "force"}
+		"psychic", "necrotic", "radiant", "lightning", "thunder", "force"}
 
 	trolls := rand.Intn(10)
 	if trolls == 0 {
 		return string(trolls), "", ""
 	}
-	
+
 	dmg = trollDamage(trolls)
 
 	return string(trolls), dmg, damage_type[rand.Intn(12)]
 }
 
-func trollDamage (trolls int) string {
+func trollDamage(trolls int) string {
 	i := 0
 	trollDmg := 0
 	for i < trolls {
