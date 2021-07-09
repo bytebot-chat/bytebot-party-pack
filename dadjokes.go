@@ -27,7 +27,7 @@ func httpRequest() string {
 	req, err := http.NewRequest("GET", url, nil) // crafting HTTP request with url and userAgent
 	if err != nil {                              // if err, loggging error via Zerolog and returning error to chat
 		sublogger.Warn().Err(err).Msg("HTTP request formatting error")
-		return "An error occurred: " + err.Error()
+		return fmt.Sprintf("An error occured: %v", err)
 	}
 
 	req.Header.Set("User-Agent", userAgent)
@@ -36,7 +36,7 @@ func httpRequest() string {
 	resp, err := client.Do(req)
 	if err != nil {
 		sublogger.Warn().Err(err).Msg("HTTP request error")
-		return "An error occurred: " + err.Error()
+		return fmt.Sprintf("An error occured: %v", err)
 	}
 	defer resp.Body.Close() // closing the request body as required by net/http
 
@@ -50,7 +50,7 @@ func httpRequest() string {
 	r, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		sublogger.Warn().Err(err).Msg("ioutil.ReadAll error")
-		return "An error occurred: " + err.Error()
+		return fmt.Sprintf("An error occured: %v", err)
 	}
 	return string(r)
 }
