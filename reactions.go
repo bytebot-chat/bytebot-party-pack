@@ -27,7 +27,7 @@ func reactions(message model.Message) (string, bool) {
 	case "!ipinfo":
 		reactionContent = ipinfo(message.Content)
 	case "!choose":
-		reactionContent = choose(message.From, message.Content)
+		reactionContent = decisions(message.From, message.Content)
 	case "!dadjoke":
 		reactionContent = dadjoke()
 	}
