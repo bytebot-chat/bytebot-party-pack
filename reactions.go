@@ -29,7 +29,7 @@ func reactions(message model.Message) (string, bool) {
 	case "!choose":
 		reactionContent = decisions(message.From, message.Content)
 	case "!dadjoke":
-		reactionContent = dadjoke()
+		reactionContent = jokeTrigger()
 	}
 
 	return reactionContent, reactionContent != ""
