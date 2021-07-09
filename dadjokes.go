@@ -11,18 +11,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type dadJoke struct {
+	ID     string `json:"id"`
+	Joke   string `json:"joke"`
+	Status string `json:"status"`
+}
+
 func dadjoke() string {
 	return httpRequest()
 }
 
 func httpRequest() string {
-
-	type dadJoke struct {
-		ID     string `json:"id"`
-		Joke   string `json:"joke"`
-		Status string `json:"status"`
-	}
-
 	// instantiate Zerolog sublogger
 	sublogger := log.With().
 		Str("trigger", "dadjoke").
