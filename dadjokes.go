@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +16,12 @@ func dadjoke() string {
 }
 
 func httpRequest() string {
+
+	type dadJoke struct {
+		ID     string `json:"id"`
+		Joke   string `json:"joke"`
+		Status string `json:"status"`
+	}
 
 	// instantiate Zerolog sublogger
 	sublogger := log.With().
@@ -32,13 +39,16 @@ func httpRequest() string {
 	}
 
 	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "application/json")
 
-	client := http.Client{}
+	client := &http.Client{}
 	resp, err := client.Do(req)
+
 	if err != nil {
 		sublogger.Warn().Err(err).Msg("HTTP request error")
 		return fmt.Sprintf("An error occured: %v", err)
 	}
+
 	defer resp.Body.Close() // closing the request body as required by net/http
 
 	if resp.StatusCode != 200 {
@@ -49,9 +59,18 @@ func httpRequest() string {
 	}
 
 	r, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
 		sublogger.Warn().Err(err).Msg("ioutil.ReadAll error")
 		return fmt.Sprintf("An error occured: %v", err)
 	}
-	return string(r)
+
+	dadJokeResp := new(dadJoke)
+	unmarshalErr := json.Unmarshal([]byte(r), &dadJokeResp)
+	if unmarshalErr != nil {
+		sublogger.Warn().Err(unmarshalErr).Msg("Fatal error in json.Unmarshal | dadjokes.go:68")
+		return fmt.Sprintf("An error occured: %v", unmarshalErr)
+	}
+
+	return dadJokeResp.Joke
 }
