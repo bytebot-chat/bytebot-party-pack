@@ -14,7 +14,7 @@ import (
 type dadJoke struct {
 	ID     string `json:"id"`
 	Joke   string `json:"joke"`
-	Status string `json:"status"`
+	Status int    `json:"status"`
 }
 
 func (j *dadJoke) Unmarshal(b []byte) error {
