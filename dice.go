@@ -9,7 +9,7 @@ import (
 func diceTrigger(nick, r string) string {
 	result := rollDice(r) // instantiate result variable and store result of roll
 
-	return nick + " rolled a " + result
+	return fmt.Sprintf("%s rolled a  %s", nick, result)
 }
 
 // function invoking dice library
