@@ -29,7 +29,7 @@ func reactions(message model.Message) (string, bool) {
 	case "!choose":
 		reactionContent = decisions(message.From, message.Content)
 	case "!roll":
-		reactionContent = dice(message.From, message.Content)
+		reactionContent = diceTrigger(message.From, message.Content)
 	}
 
 	return reactionContent, reactionContent != ""
