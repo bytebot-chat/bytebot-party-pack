@@ -25,10 +25,10 @@ func choose(msg string) string {
 
 	fmt.Println(choices)
 
-	//// if the array has less than 2 elements (choices), return null
-	//if len(choices) < 2 {
-	//	return "you "
-	//}
+	// if the array has less than 2 elements (choices), return null
+	if len(choices) < 2 {
+		return ""
+	}
 
 	r := choices[rand.Intn(len(choices))] // using rand to select a random choice
 	return strings.TrimSpace(r)           // trim spaces on the edges
