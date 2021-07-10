@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"strings"
 )
 
 func decisions(nick, msg string) string {
-
 	choice := choose(msg)
 
 	// if choose returns null, return "Choose what?" and command usage
@@ -15,19 +15,21 @@ func decisions(nick, msg string) string {
 		return nick + ": Choose what? Usage: !choose choice1 or choice2"
 	}
 
-	return nick + ": The Powers that Be have chosen: " + choice // returning the choice
+	return fmt.Sprintf("%s: The powers that be have chosen: %s", nick, choice) // returning the choice
 }
 
 // the actual choose function
 func choose(msg string) string {
-	msg = strings.Trim(msg, "!choose ") // remove !choose trigger from the msg string
-	choices := strings.Split(msg, "or") // split on " or "
+	msg = strings.TrimPrefix(msg, "!choose ") // remove !choose trigger from the msg string
+	choices := strings.Split(msg, "or")       // split on " or "
 
-	// if the array has less than 2 elements (choices), return null
-	if len(choices) < 2 {
-		return ""
-	}
+	fmt.Println(choices)
+
+	//// if the array has less than 2 elements (choices), return null
+	//if len(choices) < 2 {
+	//	return "you "
+	//}
 
 	r := choices[rand.Intn(len(choices))] // using rand to select a random choice
-	return r
+	return strings.TrimSpace(r)           // trim spaces on the edges
 }
