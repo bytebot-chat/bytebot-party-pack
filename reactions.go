@@ -26,10 +26,12 @@ func reactions(message model.Message) (string, bool) {
 		reactionContent = epeen(message.From)
 	case "!ipinfo":
 		reactionContent = ipinfo(message.Content)
+	case "!roll":
+		reactionContent = diceTrigger(message.From, message.Content)
 	case "!choose":
-		reactionContent = choose(message.From, message.Content)
-	case "!troll":
-		reactionContent = troll(message.From, message.Content)
+		reactionContent = decisions(message.From, message.Content)
+	case "!dadjoke":
+		reactionContent = jokeTrigger()
 	}
 
 	return reactionContent, reactionContent != ""
