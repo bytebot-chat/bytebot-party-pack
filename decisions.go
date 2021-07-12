@@ -15,7 +15,7 @@ func decisions(nick, msg string) string {
 		return nick + ": Choose what? Usage: !choose choice1 or choice2"
 	}
 
-	return fmt.Sprintf("%s: The powers that be have chosen: %s", nick, choice) // returning the choice
+	return fmt.Sprintf("%s: The powers that be have chosen %s", nick, choice) // returning the choice
 }
 
 // the actual choose function
