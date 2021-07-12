@@ -11,8 +11,8 @@ func TestDecisionsChoose(t *testing.T) {
 		input           string
 		possibleOutputs []string // This makes the check efficient
 	}{
-		{"!choose a or b", []string{"a", "b"}},
-		{"!choose a or b or c", []string{"a", "b", "c"}},
+		{"!choose a, b", []string{"a", "b"}},
+		{"!choose a, b, c", []string{"a", "b", "c"}},
 		{"!choose ", []string{""}},
 	}
 

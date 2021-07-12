@@ -12,7 +12,7 @@ func decisions(nick, msg string) string {
 	// if choose returns null, return "Choose what?" and command usage
 	if choice == "" {
 		choice = "Choose what?"
-		return nick + ": Choose what? Usage: !choose choice1 or choice2"
+		return nick + ": Choose what? Usage: !choose choice1, choice2"
 	}
 
 	return fmt.Sprintf("%s: The powers that be have chosen %s", nick, choice) // returning the choice
@@ -21,9 +21,7 @@ func decisions(nick, msg string) string {
 // the actual choose function
 func choose(msg string) string {
 	msg = strings.TrimPrefix(msg, "!choose ") // remove !choose trigger from the msg string
-	choices := strings.Split(msg, "or")       // split on " or "
-
-	fmt.Println(choices)
+	choices := strings.Split(msg, ",")        // split on coma
 
 	// if the array has less than 2 elements (choices), return null
 	if len(choices) < 2 {
