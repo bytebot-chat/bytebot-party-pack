@@ -5,24 +5,43 @@ import (
 	"encoding/json"
 	"strings"
 
+	disco "github.com/bytebot-chat/gateway-discord/model"
 	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog/log"
 	"github.com/satori/go.uuid"
 )
 
-func reply(ctx context.Context, m model.Message, rdb *redis.Client, topic, reply string) {
-	if !strings.HasPrefix(m.To, "#") { // DMs go back to source, channel goes back to channel
-		m.To = m.From
-	}
-	m.From = ""
-	m.Metadata.Dest = m.Metadata.Source
-	m.Metadata.Source = "hello-world"
-	m.Content = reply
-	m.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
-	stringMsg, _ := json.Marshal(m)
-	rdb.Publish(ctx, topic, stringMsg)
+func replyIRC(ctx context.Context, m Message, rdb *redis.Client, topic, reply string) {
+	returnMsg := &model.Message{}
 
+	if !strings.HasPrefix(m.To, "#") { // DMs go back to source, channel goes back to channel
+		returnMsg.To = m.From
+	}
+	returnMsg.From = ""
+	returnMsg.Metadata.Dest = m.Metadata.Source
+	returnMsg.Metadata.Source = "party-pack"
+	returnMsg.Content = reply
+	returnMsg.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
+	stringReply, _ := json.Marshal(returnMsg)
+	rdb.Publish(ctx, topic, stringReply)
+
+	log.Debug().
+		RawJSON("message", stringReply).
+		Msg("Reply")
+
+	return
+}
+
+func replyDiscord(ctx context.Context, m disco.Message, rdb *redis.Client, topic, reply string) {
+	metadata := disco.Metadata{
+		Dest:   m.Metadata.Source,
+		Source: "babbler",
+		ID:     uuid.Must(uuid.NewV4(), *new(error)),
+	}
+
+	stringMsg, _ := m.MarshalReply(metadata, m.ChannelID, reply)
+	rdb.Publish(ctx, topic, stringMsg)
 	log.Debug().
 		RawJSON("message", stringMsg).
 		Msg("Reply")
@@ -38,5 +57,27 @@ func (i *stringArrayFlags) String() string {
 
 func (i *stringArrayFlags) Set(s string) error {
 	*i = append(*i, s)
+	return nil
+}
+
+type Message struct {
+	From     string
+	To       string
+	Source   string
+	Content  string
+	Raw      interface{}
+	Metadata Metadata
+}
+
+type Metadata struct {
+	Source string
+	Dest   string
+	ID     uuid.UUID
+}
+
+func (m *Message) Unmarshal(b []byte) error {
+	if err := json.Unmarshal(b, m); err != nil {
+		return err
+	}
 	return nil
 }
