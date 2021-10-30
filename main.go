@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	disco "github.com/bytebot-chat/gateway-discord/model"
-	//	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -112,7 +110,7 @@ func subscribeDiscord(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client
 	log.Info().Msg("Subscribed!")
 	channel := sub.Channel()
 	for msg := range channel {
-		m := &disco.Message{}
+		m := &Message{}
 		err := m.Unmarshal([]byte(msg.Payload))
 		if err != nil {
 			log.Error().
@@ -123,13 +121,11 @@ func subscribeDiscord(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client
 			RawJSON("Received message", []byte(msg.Payload)).
 			Msg("Received message")
 
-		/*
-			answer, activated := reactions(*m)
-			if activated {
-				for _, q := range outbound {
-					reply(ctx, *m, rdb, q, answer)
-				}
+		answer, activated := reactions(*m)
+		if activated {
+			for _, q := range outbound {
+				replyDiscord(ctx, *m, rdb, q, answer)
 			}
-		*/
+		}
 	}
 }

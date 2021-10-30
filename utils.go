@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"strings"
 
-	disco "github.com/bytebot-chat/gateway-discord/model"
 	"github.com/bytebot-chat/gateway-irc/model"
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog/log"
@@ -33,17 +32,23 @@ func replyIRC(ctx context.Context, m Message, rdb *redis.Client, topic, reply st
 	return
 }
 
-func replyDiscord(ctx context.Context, m disco.Message, rdb *redis.Client, topic, reply string) {
-	metadata := disco.Metadata{
+func replyDiscord(ctx context.Context, m Message, rdb *redis.Client, topic, reply string) {
+	metadata := Metadata{
 		Dest:   m.Metadata.Source,
-		Source: "babbler",
+		Source: "party-pack",
 		ID:     uuid.Must(uuid.NewV4(), *new(error)),
 	}
 
-	stringMsg, _ := m.MarshalReply(metadata, m.ChannelID, reply)
-	rdb.Publish(ctx, topic, stringMsg)
+	returnMsg := &Message{
+		From:      "",
+		ChannelID: m.From,
+		Metadata:  metadata,
+	}
+
+	stringReply, _ := json.Marshal(returnMsg)
+	rdb.Publish(ctx, topic, stringReply)
 	log.Debug().
-		RawJSON("message", stringMsg).
+		RawJSON("message", stringReply).
 		Msg("Reply")
 
 	return
@@ -61,12 +66,13 @@ func (i *stringArrayFlags) Set(s string) error {
 }
 
 type Message struct {
-	From     string
-	To       string
-	Source   string
-	Content  string
-	Raw      interface{}
-	Metadata Metadata
+	From      string
+	To        string
+	Source    string
+	Content   string
+	ChannelID string
+	Raw       interface{}
+	Metadata  Metadata
 }
 
 type Metadata struct {
