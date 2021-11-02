@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/bytebot-chat/gateway-irc/model"
@@ -33,24 +34,25 @@ func replyIRC(ctx context.Context, m Message, rdb *redis.Client, topic, reply st
 }
 
 func replyDiscord(ctx context.Context, m Message, rdb *redis.Client, topic, reply string) {
+	log.Debug().Msg("replyDiscord")
 	metadata := Metadata{
-		Dest:   m.Metadata.Source,
+		Dest:   "discord",
 		Source: "party-pack",
 		ID:     uuid.Must(uuid.NewV4(), *new(error)),
 	}
 
+	log.Debug().Msg(fmt.Sprintf("%+v", metadata))
 	returnMsg := &Message{
 		From:      "",
-		ChannelID: m.From,
+		ChannelID: m.ChannelID,
 		Metadata:  metadata,
+		Content:   reply,
 	}
 
 	stringReply, _ := json.Marshal(returnMsg)
+	log.Debug().Msg(fmt.Sprintf("%s", stringReply))
 	rdb.Publish(ctx, topic, stringReply)
-	log.Debug().
-		RawJSON("message", stringReply).
-		Msg("Reply")
-
+	log.Debug().Msg("Message published")
 	return
 }
 
@@ -68,11 +70,13 @@ func (i *stringArrayFlags) Set(s string) error {
 type Message struct {
 	From      string
 	To        string
-	Source    string
 	Content   string
-	ChannelID string
+	ChannelID string `json:"channel_id"`
 	Raw       interface{}
 	Metadata  Metadata
+	Author    struct {
+		Username string
+	}
 }
 
 type Metadata struct {

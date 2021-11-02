@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"sync"
 	"time"
 
@@ -16,7 +17,7 @@ var ircOutbound stringArrayFlags
 var discordInbound stringArrayFlags
 var discordOutbound stringArrayFlags
 
-var addr = flag.String("redis", "localhost:6379", "Redis server address")
+var addr = flag.String("redis", "redis:6379", "Redis server address")
 
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -30,7 +31,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-
 	log.Info().
 		Str("Redis address", *addr).
 		Msg("Bytebot Party Pack starting up!")
@@ -117,12 +117,16 @@ func subscribeDiscord(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client
 				Str("message payload", msg.Payload).
 				Err(err)
 		}
+
+		m.From = m.Author.Username
+
 		log.Debug().
-			RawJSON("Received message", []byte(msg.Payload)).
-			Msg("Received message")
+			RawJSON("Received message", []byte(fmt.Sprintf("%+v", m))).
+			Msg("Party-Pack message")
 
 		answer, activated := reactions(*m)
 		if activated {
+			log.Debug().Msg("Reactions triggered")
 			for _, q := range outbound {
 				replyDiscord(ctx, *m, rdb, q, answer)
 			}
