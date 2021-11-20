@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/bytebot-chat/gateway-irc/model"
@@ -11,22 +12,47 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-func reply(ctx context.Context, m model.Message, rdb *redis.Client, topic, reply string) {
+func replyIRC(ctx context.Context, m Message, rdb *redis.Client, topic, reply string) {
+	returnMsg := &model.Message{}
+
 	if !strings.HasPrefix(m.To, "#") { // DMs go back to source, channel goes back to channel
-		m.To = m.From
+		returnMsg.To = m.From
 	}
-	m.From = ""
-	m.Metadata.Dest = m.Metadata.Source
-	m.Metadata.Source = "hello-world"
-	m.Content = reply
-	m.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
-	stringMsg, _ := json.Marshal(m)
-	rdb.Publish(ctx, topic, stringMsg)
+	returnMsg.From = ""
+	returnMsg.Metadata.Dest = m.Metadata.Source
+	returnMsg.Metadata.Source = "party-pack"
+	returnMsg.Content = reply
+	returnMsg.Metadata.ID = uuid.Must(uuid.NewV4(), *new(error))
+	stringReply, _ := json.Marshal(returnMsg)
+	rdb.Publish(ctx, topic, stringReply)
 
 	log.Debug().
-		RawJSON("message", stringMsg).
+		RawJSON("message", stringReply).
 		Msg("Reply")
 
+	return
+}
+
+func replyDiscord(ctx context.Context, m Message, rdb *redis.Client, topic, reply string) {
+	log.Debug().Msg("replyDiscord")
+	metadata := Metadata{
+		Dest:   "discord",
+		Source: "party-pack",
+		ID:     uuid.Must(uuid.NewV4(), *new(error)),
+	}
+
+	log.Debug().Msg(fmt.Sprintf("%+v", metadata))
+	returnMsg := &Message{
+		From:      "",
+		ChannelID: m.ChannelID,
+		Metadata:  metadata,
+		Content:   reply,
+	}
+
+	stringReply, _ := json.Marshal(returnMsg)
+	log.Debug().Msg(fmt.Sprintf("%s", stringReply))
+	rdb.Publish(ctx, topic, stringReply)
+	log.Debug().Msg("Message published")
 	return
 }
 
@@ -38,5 +64,30 @@ func (i *stringArrayFlags) String() string {
 
 func (i *stringArrayFlags) Set(s string) error {
 	*i = append(*i, s)
+	return nil
+}
+
+type Message struct {
+	From      string
+	To        string
+	Content   string
+	ChannelID string `json:"channel_id"`
+	Raw       interface{}
+	Metadata  Metadata
+	Author    struct {
+		Username string
+	}
+}
+
+type Metadata struct {
+	Source string
+	Dest   string
+	ID     uuid.UUID
+}
+
+func (m *Message) Unmarshal(b []byte) error {
+	if err := json.Unmarshal(b, m); err != nil {
+		return err
+	}
 	return nil
 }
