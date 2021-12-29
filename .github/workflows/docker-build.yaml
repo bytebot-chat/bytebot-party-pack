@@ -43,7 +43,7 @@ jobs:
         id: meta
         uses: crazy-max/ghaction-docker-meta@v2
         with:
-          images: dkr.fraq.dev/bytebot/party-pack
+          images: ghcr.io/${{ github.repository_owner }}/bytebot-party-pack
           tags: |
             type=edge
             type=ref,event=branch
@@ -56,9 +56,9 @@ jobs:
         uses: docker/login-action@v1 
         if: github.event_name != 'pull_request'
         with:
-          registry: dkr.fraq.dev
-          username: ${{ secrets.DKR_FRAQ_DEV_USER }}
-          password: ${{ secrets.DKR_FRAQ_DEV_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       -
         name: Build and push
         id: docker_build
