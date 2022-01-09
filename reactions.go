@@ -31,7 +31,6 @@ func reactions(message Message) (string, bool) {
 		reactionContent = decisions(message.From, message.Content)
 	case "!dadjoke":
 		reactionContent = jokeTrigger()
-
 	}
 
 	return reactionContent, reactionContent != ""
