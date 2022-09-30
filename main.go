@@ -18,6 +18,7 @@ var discordInbound stringArrayFlags
 var discordOutbound stringArrayFlags
 
 var addr = flag.String("redis", "redis:6379", "Redis server address")
+var modules = flag.String("modules", "all", "Which party pack reactions to enable")
 
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
