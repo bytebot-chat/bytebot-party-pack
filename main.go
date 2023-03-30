@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/alexliesenfeld/health"
+	"github.com/bytebot-chat/gateway-discord/model"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -45,6 +47,20 @@ func main() {
 				Str("topic", topic).
 				Str("msg", msg.Payload).
 				Msg("Received message")
+
+			// Unmarshal the message into a model.Message struct
+			var m model.Message
+			err := json.Unmarshal([]byte(msg.Payload), &m)
+			if err != nil {
+				log.Err(err).
+					Str("func", "main").
+					Str("msg", msg.Payload).
+					Msg("Unable to unmarshal message")
+				continue
+			}
+
+			// Route the message to the appropriate handler
+			messageRouter(rdb, m)
 		}
 	}()
 
