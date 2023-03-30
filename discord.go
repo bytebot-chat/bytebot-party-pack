@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/bytebot-chat/gateway-discord/model"
@@ -28,9 +29,14 @@ func subscribeDiscord(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client
 		}
 
 		log.Info().
+			RawJSON("raw message body", []byte(inboundMessage.Payload))
+
+		log.Info().Msg(fmt.Sprintf("%+v", msg))
+
+		log.Info().
 			Str("channel", msg.Message.ChannelID).
 			Str("user", msg.Message.Author.Username).
-			Str("message", msg.Message.Content).
+			Str("message", msg.Content).
 			Msg("Received message")
 
 		answer, ok := reactions(msg)

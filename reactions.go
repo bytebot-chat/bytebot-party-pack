@@ -11,7 +11,7 @@ func reactions(message model.Message) (string, bool) {
 	// for some funky stuff later like redirections and all.
 
 	reactionContent := ""
-	switchToken := strings.Split(message.Content, " ")[0]
+	switchToken := strings.Split(message.Message.Content, " ")[0]
 	switch switchToken {
 	case "!shrug":
 		reactionContent = "¯\\_(ツ)_/¯"
@@ -26,11 +26,11 @@ func reactions(message model.Message) (string, bool) {
 	case "!epeen":
 		reactionContent = epeen(message.Author.Username)
 	case "!ipinfo":
-		reactionContent = ipinfo(message.Content)
+		reactionContent = ipinfo(message.Message.Content)
 	case "!roll":
-		reactionContent = diceTrigger(message.Author.Username, message.Content)
+		reactionContent = diceTrigger(message.Author.Username, message.Message.Content)
 	case "!choose":
-		reactionContent = decisions(message.Author.Username, message.Content)
+		reactionContent = decisions(message.Author.Username, message.Message.Content)
 	case "!dadjoke":
 		reactionContent = jokeTrigger()
 
