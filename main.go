@@ -2,55 +2,82 @@ package main
 
 import (
 	"context"
-	"flag"
+	"net/http"
 	"os"
-	"sync"
+	"time"
 
+	"github.com/alexliesenfeld/health"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	redisCtx  = context.Background()
-	inbound   = flag.String("inbound", "discord-inbound", "inbound channel (from discord)")
-	outbound  = flag.String("outbound", "discord-outbound", "outbound channel (to discord)")
-	redisAddr = flag.String("redis", "", "redis address")
+const (
+	topic = "discord-inbound"
 )
 
-func init() {
-	// Configure zerolog to log to stdout in JSON
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+func main() {
+	log.Info().Msg("Hello, world!")
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	// Connect to redis
+	rdb := redisConnect(os.Getenv("REDIS_URL"), context.Background())
+
+	// Create a new pubsub client
+	log.Info().
+		Str("topic", topic).
+		Msg("Subscribing to topic")
+	pubsub := rdb.Subscribe(context.Background(), topic)
+	defer pubsub.Close()
+
+	// Create a channel to receive messages
+	log.Info().
+		Str("topic", topic).
+		Msg("Creating channel")
+	ch := pubsub.Channel()
+
+	// Loop forever
+	log.Info().
+		Str("topic", topic).
+		Msg("Starting loop")
+	go func() {
+		for msg := range ch {
+			log.Info().
+				Str("topic", topic).
+				Str("msg", msg.Payload).
+				Msg("Received message")
+		}
+	}()
+
+	// Add a healthcheck endpoint on port 8080
+	log.Info().Msg("Registering healthcheck endpoint")
+	http.Handle("/health", health.NewHandler(newHealthChecker()))
+	log.Info().Msg("Starting http server on port 8080")
+	http.ListenAndServe(":8080", nil)
 
 }
 
-func main() {
+func newHealthChecker() health.Checker {
+	return health.NewChecker(
 
-	flag.Parse()
-	*redisAddr = os.Getenv("REDIS_URL")
-	log.Info().
-		Str("inbound", *inbound).
-		Str("outbound", *outbound).
-		Str("redis", *redisAddr).
-		Msg("Starting Party-Pack")
+		health.WithCacheDuration(1*time.Second),
 
-	// Connect to redis
-	rdb := redisConnect(*redisAddr, "", "", 0, redisCtx) // Not really concerned about the username and password here because we are using a URL provided by Fly.io
-	if rdb == nil {
-		log.Fatal().Msg("Unable to connect to redis")
-		return
-	}
+		health.WithTimeout(10*time.Second),
 
-	// Configure and run health checks
-	go healthCheck(redisCtx, rdb)
+		health.WithCheck(
+			health.Check{
+				Name:    "redis",
+				Timeout: 2 * time.Second,
+				Check: func(ctx context.Context) error {
+					log.Info().Msg("Running redis check")
+					return nil
+				},
+			},
+		),
 
-	// Start the bot
-	log.Info().Msg("Listening for messages on " + *inbound)
-	log.Info().Msg("Sending messages to " + *outbound)
-
-	// Subscribe to the discord channel
-	var wg sync.WaitGroup // We don't need the waitgroup here, but I don't want to remove it from the function signature
-	// Subscribe to the inbound channel
-	// This will block until the context is cancelled
-	subscribeDiscord(redisCtx, &wg, rdb, *inbound, []string{*outbound})
+		// Set a status listener that will be invoked when the health status changes.
+		// More powerful hooks are also available (see docs).
+		health.WithStatusListener(func(ctx context.Context, state health.CheckerState) {
+			log.Info().Msgf("Health status changed: %s", state.Status)
+		}),
+	)
 }

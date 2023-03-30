@@ -12,22 +12,14 @@ import (
 // redisConnect is used to manage the connection to redis and gracefully exit if the connection fails
 // If the address is a URL, then it will be parsed and the redis.Options struct will be populated
 // There is no need to pass the username and password if the address is a URL. Use "" for both instead.
-func redisConnect(addr, user, password string, db int, ctx context.Context) *redis.Client {
+func redisConnect(addr string, ctx context.Context) *redis.Client {
 
 	var (
 		redisOpts redis.Options
 	)
 
-	// If the address is a URL, then parse it
-	if strings.HasPrefix(addr, "redis://") {
-		redisOpts = redisParseURL(addr)
-	} else {
-		redisOpts = redis.Options{
-			Addr:     addr,
-			Password: password,
-			DB:       db,
-		}
-	}
+	// This is deployed on fly, so we automatically get a redis URL
+	redisOpts = redisParseURL(addr)
 
 	log.Info().
 		Str("func", "redisConnect").
