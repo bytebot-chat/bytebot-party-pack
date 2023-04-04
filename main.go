@@ -2,134 +2,98 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
-	"sync"
+	"encoding/json"
+	"net/http"
+	"os"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/alexliesenfeld/health"
+	"github.com/bytebot-chat/gateway-discord/model"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var ircInbound stringArrayFlags
-var ircOutbound stringArrayFlags
-var discordInbound stringArrayFlags
-var discordOutbound stringArrayFlags
-
-var addr = flag.String("redis", "redis:6379", "Redis server address")
-
-func init() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-
-	flag.Var(&ircInbound, "irc-inbound", "IRC topic to listen to. May be repeated. Example: -irc-inbound=irc1 -irc-inbound=irc2")
-	flag.Var(&ircOutbound, "irc-outbound", "IRC topic to publish to. May be repeated. Example: -irc-outbound=irc1 -irc-outbound=irc2")
-
-	flag.Var(&discordInbound, "discord-inbound", "Discord topic to listen to. May be repeated. Example: -discord-inbound=discord1 -discord-inbound=discord2")
-	flag.Var(&discordOutbound, "discord-outbound", "Discord topic to publish to. May be repeated. Example: -discord-outbound=discord1 -discord-outbound=discord2")
-}
+const (
+	topic = "discord-inbound"
+)
 
 func main() {
-	flag.Parse()
+	log.Info().Msg("Hello, world!")
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	// Connect to redijuptr-prod-hg-01-main-xlarge-eks_asgs
+	rdb := redisConnect(os.Getenv("REDIS_URL"), context.Background())
+
+	// Create a new pubsub client
 	log.Info().
-		Str("Redis address", *addr).
-		Msg("Bytebot Party Pack starting up!")
+		Str("topic", topic).
+		Msg("Subscribing to topic")
+	pubsub := rdb.Subscribe(context.Background(), topic)
+	defer pubsub.Close()
 
-	ctx := context.Background()
+	// Create a channel to receive messages
+	log.Info().
+		Str("topic", topic).
+		Msg("Creating channel")
+	ch := pubsub.Channel()
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr: *addr,
-		DB:   0,
-	})
+	// Loop forever
+	log.Info().
+		Str("topic", topic).
+		Msg("Starting loop")
+	go func() {
+		for msg := range ch {
+			log.Debug().
+				Str("topic", topic).
+				Str("msg", msg.Payload).
+				Msg("Received message")
 
-	err := rdb.Ping(ctx).Err()
-	if err != nil {
-		log.Warn().Msg("Ping timeout, trying to connect to redis again...")
-		time.Sleep(3 * time.Second)
-		err := rdb.Ping(ctx).Err()
-		if err != nil {
-			log.Fatal().Err(err).
-				Msg("Couldn't connect to redis server")
+			// Unmarshal the message into a model.Message struct
+			var m model.Message
+			err := json.Unmarshal([]byte(msg.Payload), &m)
+			if err != nil {
+				log.Err(err).
+					Str("func", "main").
+					Str("msg", msg.Payload).
+					Msg("Unable to unmarshal message")
+				continue
+			}
+
+			// Route the message to the appropriate handler
+			messageRouter(rdb, m)
 		}
-	}
+	}()
 
-	log.Info().Msg("Subscribing to topics...")
-	var wg sync.WaitGroup
+	// Add a healthcheck endpoint on port 8080
+	log.Info().Msg("Registering healthcheck endpoint")
+	http.Handle("/health", health.NewHandler(newHealthChecker()))
+	log.Info().Msg("Starting http server on port 8080")
+	http.ListenAndServe(":8080", nil)
 
-	for _, topic := range ircInbound {
-		log.Info().Msg("Launching worker for " + topic + "...")
-		wg.Add(1)
-		go subscribeIRC(ctx, &wg, rdb, topic, ircOutbound)
-	}
-
-	for _, topic := range discordInbound {
-		log.Info().Msg("Launching worker for " + topic + "...")
-		wg.Add(1)
-		go subscribeDiscord(ctx, &wg, rdb, topic, discordOutbound)
-	}
-
-	log.Info().Msg("Workers launched. Listening for messages.")
-	wg.Wait()
 }
 
-func subscribeIRC(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, topic string, outbound []string) {
-	defer wg.Done()
-	log.Info().Msg("Subscribing to " + topic)
-	sub := rdb.Subscribe(ctx, topic)
-	log.Info().Msg("Subscribed!")
-	channel := sub.Channel()
-	for msg := range channel {
-		m := &Message{}
+func newHealthChecker() health.Checker {
+	return health.NewChecker(
 
-		// Unpack pubsub message into simplified message for Party Pack
-		err := m.Unmarshal([]byte(msg.Payload))
-		if err != nil {
-			log.Error().
-				Str("message payload", msg.Payload).
-				Err(err)
-		}
-		log.Debug().
-			RawJSON("Received message", []byte(msg.Payload)).
-			Msg("Received message")
+		health.WithCacheDuration(1*time.Second),
 
-		// Trigger doing its own treatment of the message
-		answer, activated := reactions(*m)
-		if activated {
-			for _, q := range outbound {
-				replyIRC(ctx, *m, rdb, q, answer)
-			}
-		}
-	}
-}
+		health.WithTimeout(10*time.Second),
 
-func subscribeDiscord(ctx context.Context, wg *sync.WaitGroup, rdb *redis.Client, topic string, outbound []string) {
-	defer wg.Done()
+		health.WithCheck(
+			health.Check{
+				Name:    "redis",
+				Timeout: 2 * time.Second,
+				Check: func(ctx context.Context) error {
+					log.Info().Msg("Running redis check")
+					return nil
+				},
+			},
+		),
 
-	log.Info().Msg("Subscribing to " + topic)
-	sub := rdb.Subscribe(ctx, topic)
-	log.Info().Msg("Subscribed!")
-	channel := sub.Channel()
-	for msg := range channel {
-		m := &Message{}
-		err := m.Unmarshal([]byte(msg.Payload))
-		if err != nil {
-			log.Error().
-				Str("message payload", msg.Payload).
-				Err(err)
-		}
-
-		m.From = m.Author.Username
-
-		log.Debug().
-			RawJSON("Received message", []byte(fmt.Sprintf("%+v", m))).
-			Msg("Party-Pack message")
-
-		answer, activated := reactions(*m)
-		if activated {
-			log.Debug().Msg("Reactions triggered")
-			for _, q := range outbound {
-				replyDiscord(ctx, *m, rdb, q, answer)
-			}
-		}
-	}
+		// Set a status listener that will be invoked when the health status changes.
+		// More powerful hooks are also available (see docs).
+		health.WithStatusListener(func(ctx context.Context, state health.CheckerState) {
+			log.Info().Msgf("Health status changed: %s", state.Status)
+		}),
+	)
 }
