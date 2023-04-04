@@ -15,8 +15,8 @@ func messageRouter(rdb *redis.Client, m model.Message) {
 
 	var handlers []func(model.Message) *model.MessageSend
 
-	handlers = append(handlers, echoHandler)
-	handlers = append(handlers, echoHandler)
+	handlers = append(handlers, simpleHandler)
+	//	handlers = append(handlers, epeenHandler)
 
 	ctx := context.Background()
 
