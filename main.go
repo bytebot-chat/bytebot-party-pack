@@ -43,7 +43,7 @@ func main() {
 		Msg("Starting loop")
 	go func() {
 		for msg := range ch {
-			log.Info().
+			log.Debug().
 				Str("topic", topic).
 				Str("msg", msg.Payload).
 				Msg("Received message")

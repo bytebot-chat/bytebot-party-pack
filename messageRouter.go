@@ -63,5 +63,7 @@ func send(ctx context.Context, rdb *redis.Client, reply model.MessageSend) {
 	log.Info().
 		Str("func", "send").
 		Str("msg", reply.Metadata.ID.String()).
+		Str("content", reply.Content).
+		Str("previous_content", reply.PreviousMessage.Content).
 		Msg("Message sent")
 }

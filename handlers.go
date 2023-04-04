@@ -46,5 +46,4 @@ func epeen(m model.Message) string {
 	peepeeCrc := crc64.Checksum([]byte(m.Author.Username+time.Now().Format("2006-01-02")), crc64.MakeTable(crc64.ECMA))
 	peepeeRnd := rand.New(rand.NewSource(int64(peepeeCrc)))
 	return "8" + strings.Repeat("=", peepeeRnd.Intn(peepeeSize)) + "D"
-
 }
