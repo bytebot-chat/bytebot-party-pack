@@ -9,5 +9,14 @@ func echoHandler(m model.Message) *model.MessageSend {
 
 	reply := m.RespondToChannelOrThread("party-pack", m.Content, true, true)
 
+	switch m.Content {
+	case "ping":
+		reply.Content = "pong"
+	case "pong":
+		reply.Content = "ping"
+	default:
+		reply = nil
+	}
+
 	return reply
 }
