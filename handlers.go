@@ -35,7 +35,7 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		content = "┬─┬ノ( º _ ºノ)"
 	case "!unflip":
 		content = "┬─┬ノ( º _ ºノ)"
-	case "!hello":
+	case "hello":
 		content = fmt.Sprintf("hey, %s", m.Author.Username)
 		shouldReply = true
 	case "!epeen":
