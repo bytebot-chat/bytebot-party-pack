@@ -16,18 +16,20 @@ func messageRouter(rdb *redis.Client, m model.Message) {
 	var handlers []func(model.Message) *model.MessageSend
 
 	handlers = append(handlers, echoHandler)
-	//handlers = append(handlers, helloHandler)
+	handlers = append(handlers, echoHandler)
+
+	ctx := context.Background()
 
 	for _, handler := range handlers {
 		reply := handler(m)
 		if reply != nil {
-			send(rdb, *reply)
+			go send(ctx, rdb, *reply)
 		}
 	}
 }
 
 // this function is ugly, but it works. don't you dare touch it.
-func send(rdb *redis.Client, reply model.MessageSend) {
+func send(ctx context.Context, rdb *redis.Client, reply model.MessageSend) {
 	// Set the message metadata
 	meta := model.Metadata{
 		ID:     uuid.NewV4(),
@@ -49,7 +51,7 @@ func send(rdb *redis.Client, reply model.MessageSend) {
 	}
 
 	// Send the message to redis
-	err = rdb.Publish(context.Background(), "discord-outbound", jsonReply).Err()
+	err = rdb.Publish(ctx, "discord-outbound", jsonReply).Err()
 	if err != nil {
 		log.Err(err).
 			Str("func", "send").
