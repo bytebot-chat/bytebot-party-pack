@@ -40,6 +40,7 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		shouldReply = true
 	case "!epeen":
 		content = epeen(m)
+		shouldReply = true
 	}
 
 	return m.RespondToChannelOrThread(app, content, shouldReply, shouldMention)
