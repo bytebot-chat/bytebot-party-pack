@@ -388,6 +388,9 @@ The wttr.in API is a web API that returns the weather as a string.
 
 # Add the !ask command
 
+Goal: Allow users to interact with the OpenAI API to ask questions and get answers via the bot.
+
+Requirements:
 The !ask command should be added to the simpleHandler function.
 The statement should trigger on the command `!ask` and use the OpenAI API to generate a response to the question specified in the message.
 The question will be specified as a string. For example, `!ask What is the meaning of life?` should return a response to the question 'What is the meaning of life?'.
@@ -398,3 +401,48 @@ Use the Golang OpenAI API client to interact with the OpenAI API. The documentat
 You will need to handle an API key for the OpenAI API. It will be provided to as an environment variable named `OPENAI_API_KEY`.
 If the statement exceeds the maximum length of 2048 characters, then truncate the response and add a warning to the end of the response.
 Do not use the GPT-4 model. Use the GPT-3.5 model instead.
+
+Output:
+Give me an implementation plan for this new feature but do not write code for it yet.
+
+
+# Add passive coroutine that randomly contributes to the conversation
+
+Goal: Add a passive coroutine that randomly contributes to the conversation.
+
+Requirements:
+The coroutine should run in the background and randomly contribute to the conversation.
+It should contribute once every 100 to 200 messages, on average.
+It should contribute once every 10 to 20 minutes, on average.
+It should use the recent messages in the channel to generate a response.
+It should use the OpenAI API to generate a response to the question specified in the message.
+It may reply to a message or it may reply to the channel. It may not mention anyone.
+
+Thought process:
+- The the coroutine should keep a context of the last few messages in the channel.
+    - It should do this by keeping track of the content of the last 15 minutes of messages.
+    - It should keep no more than 100 messages in the context.
+    - It should keep a unique message context per channel seen.
+    - It should persist these messages as timed entries in a redis cache.
+    - It should use the redis cache to keep track of the last time it contributed to a channel.
+    - The coroutine should randomly decide whether or not to contribute to the conversation.
+    - The coroutine should randomly decide whether or not to reply to a message or reply to the channel.
+    - The coroutine should wait between 100 and 200 messages before contributing to the conversation.
+    - The coroutine should wait between 10 and 20 minutes before contributing to the conversation.
+    - The coroutine should randomly select a message from the context to use as the prompt.
+    - The coroutine must not answer a question that was asked by the bot.
+    - The coroutine must not reply too quickly after a message was sent. It should wait at least 5 seconds.
+
+- The coroutine should generate a response by using the `openaiClient.CreateChatCompletion` function.
+    - The function should use the GPT-3.5 model.
+    - The coroutine should check the length of the response and truncate it if it is too long.
+    - The coroutine should pull its API key from the `OPENAI_API_KEY` environment variable.
+    - The coroutine should be able to have its temperature and max tokens configured via environment variables or chat.
+        - For example, `!babble set temperature 0.5` or `!ask set max tokens 100` will set a redis key for the channel that configures the bot's behavior in that channel.
+        - The default temperature should be 0.5.
+        - The default max tokens should be 100.
+        - The bot's likelihood of responding should be an integer between 1 and 1000. 1 is 0.1% and 1000 is 100%. The default should be 10 (1%).
+        - The bot should not respond if the likelihood is 0.
+        - The bot should check the redis cache to see if the likelihood is 0 before generating a response.
+
+Do not generate any code yet. Give me an implementation plan.
