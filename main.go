@@ -21,8 +21,9 @@ func main() {
 	log.Info().Msg("Hello, world!")
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	// Connect to redijuptr-prod-hg-01-main-xlarge-eks_asgs
 	rdb := redisConnect(os.Getenv("REDIS_URL"), context.Background())
+
+	initOpenAIClient()
 
 	// Create a new pubsub client
 	log.Info().

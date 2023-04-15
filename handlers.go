@@ -36,6 +36,18 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		return m.RespondToChannelOrThread(app, content, true, false)
 	}
 
+	if strings.HasPrefix(m.Content, "!ask") {
+		question := strings.TrimSpace(strings.TrimPrefix(m.Content, "!ask"))
+		answer, err := handleAskCommand(question)
+		if err != nil {
+			content = "Error: " + err.Error()
+		} else {
+			content = answer
+		}
+		shouldReply = true
+		return m.RespondToChannelOrThread(app, content, true, false)
+	}
+
 	switch m.Content {
 	case "ping":
 		content = "pong"
