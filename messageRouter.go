@@ -23,10 +23,10 @@ func messageRouter(rdb *redis.Client, m model.Message) {
 	channelContext := NewChannelContext(rdb)
 
 	for _, handler := range handlers {
-		channelContext.AddMessage(m.Metadata.Dest, m.Content)
+		channelContext.AddMessage(m.Message.ChannelID, m.Content)
 		log.Info().
 			Str("func", "messageRouter").
-			Str("key", m.Metadata.Dest).
+			Str("key", m.Message.ChannelID).
 			Msg("Added message to channel context")
 		reply := handler(m)
 		if reply != nil {
