@@ -37,7 +37,7 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		return m.RespondToChannelOrThread(app, content, true, false)
 	}
 
-	if strings.HasPrefix(m.Content, fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))) {
+	if strings.HasPrefix(strings.ToLower(m.Content), fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))) {
 		prefix := fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))
 		question := strings.TrimSpace(strings.TrimPrefix(m.Content, prefix))
 		answer, err := handleAskCommand(question)
