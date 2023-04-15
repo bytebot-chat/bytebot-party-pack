@@ -3,11 +3,15 @@ package main
 import (
 	"fmt"
 	"hash/crc64"
+	"io/ioutil"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/bytebot-chat/gateway-discord/model"
+	"github.com/rs/zerolog/log"
 )
 
 func simpleHandler(m model.Message) *model.MessageSend {
@@ -19,6 +23,18 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		shouldReply   bool
 		shouldMention bool
 	)
+
+	if strings.HasPrefix(m.Content, "!weather") {
+		city := strings.TrimSpace(strings.TrimPrefix(m.Content, "!weather"))
+		weather, err := getWeather(city)
+		if err != nil {
+			log.Warn().Err(err).Str("city", city).Msg("Error fetching weather data")
+			content = fmt.Sprintf("Error fetching weather data for %s: %v", city, err)
+		} else {
+			content = fmt.Sprintf("The weather in %s is %s", city, weather)
+		}
+		return m.RespondToChannelOrThread(app, content, true, false)
+	}
 
 	switch m.Content {
 	case "ping":
@@ -51,4 +67,25 @@ func epeen(m model.Message) string {
 	peepeeCrc := crc64.Checksum([]byte(m.Author.Username+time.Now().Format("2006-01-02")), crc64.MakeTable(crc64.ECMA))
 	peepeeRnd := rand.New(rand.NewSource(int64(peepeeCrc)))
 	return "8" + strings.Repeat("=", peepeeRnd.Intn(peepeeSize)) + "D"
+}
+
+func getWeather(city string) (string, error) {
+	apiURL := fmt.Sprintf("https://wttr.in/%s?format=%%C|%%t|%%w", url.QueryEscape(city))
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch weather data: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	weather := string(body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("weather API returned an error: %s", weather)
+	}
+
+	return weather, nil
 }
