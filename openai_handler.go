@@ -71,7 +71,7 @@ func callOpenAI(question string) (string, error) {
 	options := openai.ChatCompletionRequest{
 		Model:       openai.GPT3Dot5Turbo,
 		Messages:    []openai.ChatCompletionMessage{message},
-		MaxTokens:   100,
+		MaxTokens:   1000,
 		Temperature: 0.8,
 		N:           1,
 		TopP:        1,
