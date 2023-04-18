@@ -24,7 +24,7 @@ func messageRouter(rdb *redis.Client, m model.Message) {
 
 	for _, handler := range handlers {
 		channelContext.AddMessage(m.Message.ChannelID, m.Content)
-		log.Info().
+		log.Debug().
 			Str("func", "messageRouter").
 			Str("key", m.Message.ChannelID).
 			Msg("Added message to channel context")
