@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -33,6 +34,19 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		} else {
 			content = fmt.Sprintf("The weather in %s is %s", city, weather)
 		}
+		return m.RespondToChannelOrThread(app, content, true, false)
+	}
+
+	if strings.HasPrefix(strings.ToLower(m.Content), fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))) {
+		prefix := fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))
+		question := strings.TrimSpace(strings.TrimPrefix(m.Content, prefix))
+		answer, err := handleAskCommand(question)
+		if err != nil {
+			content = "Error: " + err.Error()
+		} else {
+			content = answer
+		}
+		shouldReply = true
 		return m.RespondToChannelOrThread(app, content, true, false)
 	}
 

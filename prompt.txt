@@ -1,0 +1,448 @@
+The current system is a chatbot based on a pubsub architecture. The overall system is called "bytebot" and is composed of several components: the gateway(s), the redis service, and the plugin(s)/subscriber(s).
+The system is designed to receive messages from outside sources via gateways which publish them to an "inbound" redis pubsub channel. 
+The plugins/subscribers then subscribe to the inbound channel and process the messages.
+The plugins/subscribers can also publish messages to an outbound channel which are then sent to the gateway(s) which send them to the outside source.
+At this time bytebot only supports Discord as a gateway, but it is designed to be extensible to other gateways.
+Messages are received using the golang library `github.com/bytebot-chat/gateway-discord`.
+The primary plugin is the `github.com/bytebot-chat/bytebot-party-pack`.
+All code should be returned in Golang. The code should be formatted using `gofmt` and should pass `golint` and `go vet` without errors.
+Messages should be received from the gateway using the `github.com/bytebot-chat/gateway-discord` library.
+All programs should be configured using environment variables and should be able to be configured to run in a docker container.
+Only gateways may use protocol specific libraries. All other code should be protocol agnostic and import the model appropriate for the gateway.
+For example, the `github.com/bytebot-chat/gateway-discord` library uses the `github.com/bwmarrin/discordgo` library to receive messages from Discord. The `github.com/bytebot-chat/gateway-discord` library then converts the `discordgo.Message` to a `github.com/bytebot-chat/gateway/model.Message` and publishes it to the inbound channel.
+Subscribers that subscribe to discord must use the `github.com/bytebot-chat/gateway-discord/model` library to handle messages.
+All functions should have test cases. All test cases should pass `go vet` and `golint` without errors.
+The primary purpose of the party-pack is to receive messages from discord and respond to them but is not responsible for keeping context between messages.
+
+
+# Logging standards
+all logs are to be generate with `github.com/rs/zerolog`
+All logs should be in JSON format.
+All logs should be sent to stdout.
+all logs should use unix timestamps.
+All errors must include a stack trace.
+
+# Service standards
+All services must log according to the logging standards above.
+All services should be able to be configured using environment variables.
+All services should be able to be configured to run in a docker container.
+All services should be able to be configured to run in a kubernetes cluster.
+All services except gateways must only use the `github.com/bytebot-chat/gateway/model` library to handle messages.
+
+# Gateway standards
+All gateways must log according to the logging standards above.
+All gateways should be able to be configured using environment variables.
+All gateways should be able to be configured to run in a docker container.
+All gateways should be able to be configured to run in a kubernetes cluster.
+All gateways must use the appropriate protocol specific library to handle messages.
+All gateways must use the appropriate protocol specific library to send messages.
+All gateways must use the appropriate protocol specific library to receive messages.
+All gateways must also provide a model pacakge that provides a common type for messages that can be used by plugins and subscribers.
+The model package must be located at `github.com/bytebot-chat/gateway-<protocol>/model`.
+The model must provide methods to convert the model type to and from JSON, understanding that the JSON format will be different for each protocol and custom marshalers will be required.
+
+
+# Party Pack
+
+The `main.go` file looks like this
+
+```
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/alexliesenfeld/health"
+	"github.com/bytebot-chat/gateway-discord/model"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
+
+const (
+	topic = "discord-inbound"
+)
+
+func main() {
+	log.Info().Msg("Hello, world!")
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	// Connect to redijuptr-prod-hg-01-main-xlarge-eks_asgs
+	rdb := redisConnect(os.Getenv("REDIS_URL"), context.Background())
+
+	// Create a new pubsub client
+	log.Info().
+		Str("topic", topic).
+		Msg("Subscribing to topic")
+	pubsub := rdb.Subscribe(context.Background(), topic)
+	defer pubsub.Close()
+
+	// Create a channel to receive messages
+	log.Info().
+		Str("topic", topic).
+		Msg("Creating channel")
+	ch := pubsub.Channel()
+
+	// Loop forever
+	log.Info().
+		Str("topic", topic).
+		Msg("Starting loop")
+	go func() {
+		for msg := range ch {
+			log.Debug().
+				Str("topic", topic).
+				Str("msg", msg.Payload).
+				Msg("Received message")
+
+			// Unmarshal the message into a model.Message struct
+			var m model.Message
+			err := json.Unmarshal([]byte(msg.Payload), &m)
+			if err != nil {
+				log.Err(err).
+					Str("func", "main").
+					Str("msg", msg.Payload).
+					Msg("Unable to unmarshal message")
+				continue
+			}
+
+			// Route the message to the appropriate handler
+			messageRouter(rdb, m)
+		}
+	}()
+
+	// Add a healthcheck endpoint on port 8080
+	log.Info().Msg("Registering healthcheck endpoint")
+	http.Handle("/health", health.NewHandler(newHealthChecker()))
+	log.Info().Msg("Starting http server on port 8080")
+	http.ListenAndServe(":8080", nil)
+
+}
+
+func newHealthChecker() health.Checker {
+	return health.NewChecker(
+
+		health.WithCacheDuration(1*time.Second),
+
+		health.WithTimeout(10*time.Second),
+
+		health.WithCheck(
+			health.Check{
+				Name:    "redis",
+				Timeout: 2 * time.Second,
+				Check: func(ctx context.Context) error {
+					log.Info().Msg("Running redis check")
+					return nil
+				},
+			},
+		),
+
+		// Set a status listener that will be invoked when the health status changes.
+		// More powerful hooks are also available (see docs).
+		health.WithStatusListener(func(ctx context.Context, state health.CheckerState) {
+			log.Info().Msgf("Health status changed: %s", state.Status)
+		}),
+	)
+}
+```
+
+the messageRouter.go looks like this
+
+```
+package main
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/bytebot-chat/gateway-discord/model"
+	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog/log"
+	uuid "github.com/satori/go.uuid"
+)
+
+func messageRouter(rdb *redis.Client, m model.Message) {
+	// Use a for loop to send the message to all handlers
+
+	var handlers []func(model.Message) *model.MessageSend
+
+	handlers = append(handlers, simpleHandler)
+	//	handlers = append(handlers, epeenHandler)
+
+	ctx := context.Background()
+
+	for _, handler := range handlers {
+		reply := handler(m)
+		if reply != nil {
+			go send(ctx, rdb, *reply)
+		}
+	}
+}
+
+// this function is ugly, but it works. don't you dare touch it.
+func send(ctx context.Context, rdb *redis.Client, reply model.MessageSend) {
+	// Set the message metadata
+	meta := model.Metadata{
+		ID:     uuid.NewV4(),
+		Source: "party-pack",
+		Dest:   reply.Metadata.Source,
+	}
+
+	// Set the message metadata
+	reply.Metadata = meta
+
+	// Convert the message to JSON
+	jsonReply, err := json.Marshal(reply)
+	if err != nil {
+		log.Err(err).
+			Str("func", "send").
+			Str("msg", reply.Metadata.ID.String()).
+			Msg("Unable to marshal message")
+		return
+	}
+
+	// Send the message to redis
+	err = rdb.Publish(ctx, "discord-outbound", jsonReply).Err()
+	if err != nil {
+		log.Err(err).
+			Str("func", "send").
+			Str("msg", reply.Metadata.ID.String()).
+			Msg("Unable to publish message")
+		return
+	}
+
+	log.Info().
+		Str("func", "send").
+		Str("msg", reply.Metadata.ID.String()).
+		Str("content", reply.Content).
+		Str("previous_content", reply.PreviousMessage.Content).
+		Msg("Message sent")
+}
+```
+
+redis.go looks like this
+
+```
+package main
+
+import (
+	"context"
+	"os"
+	"strings"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog/log"
+)
+
+// redisConnect is used to manage the connection to redis and gracefully exit if the connection fails
+// If the address is a URL, then it will be parsed and the redis.Options struct will be populated
+// There is no need to pass the username and password if the address is a URL. Use "" for both instead.
+func redisConnect(addr string, ctx context.Context) *redis.Client {
+
+	var (
+		redisOpts redis.Options
+	)
+
+	// This is deployed on fly, so we automatically get a redis URL
+	redisOpts = redisParseURL(addr)
+
+	log.Info().
+		Str("func", "redisConnect").
+		Str("addr", redisOpts.Addr).
+		Str("user", redisOpts.Username).
+		Str("pass", redisOpts.Password).
+		Int("db", redisOpts.DB).
+		Msg("Connecting to redis")
+
+	rdb := redis.NewClient(&redisOpts)
+
+	_, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		log.Err(err).
+			Str("func", "redisConnect").
+			Msg("Unable to connect to redis. Exiting!")
+		os.Exit(1)
+	}
+
+	return rdb
+}
+
+// returns a redis.Options struct for use with redis.NewClient
+func redisParseURL(url string) redis.Options {
+
+	// Remove the redis:// prefix
+	url = strings.TrimPrefix(url, "redis://")
+
+	// Split the URL along the @ symbol
+	urlParts := strings.Split(url, "@")
+
+	auth := urlParts[0]
+	addr := urlParts[1]
+
+	// Split the auth along the : symbol to get the username and password
+	authParts := strings.Split(auth, ":")
+	username := authParts[0]
+	password := authParts[1]
+
+	// Split the addr along the / symbol to get the address and database
+	// If there is no /, then the database is 0
+	addrParts := strings.Split(addr, "/")
+	addr = addrParts[0]
+	db := 0
+
+	// If there is a : in the address, then there is a port
+	// If there is no : in the address, then there is no port
+	if strings.Contains(addr, ":") {
+		addrParts = strings.Split(addr, ":")
+		addr = addrParts[0]
+		port := addrParts[1]
+		addr = addr + ":" + port
+	} else {
+		addr = addr + ":6379"
+	}
+
+	// Return the redis.Options struct
+	return redis.Options{
+		Addr:     addr,
+		Password: password,
+		DB:       db,
+		Username: username,
+	}
+}
+```
+
+and finally the handlers.go looks like this
+
+```
+package main
+
+import (
+	"fmt"
+	"hash/crc64"
+	"math/rand"
+	"strings"
+	"time"
+
+	"github.com/bytebot-chat/gateway-discord/model"
+)
+
+func simpleHandler(m model.Message) *model.MessageSend {
+	// Send the message back to the channel it came from
+
+	var (
+		app           string = "party-pack"
+		content       string
+		shouldReply   bool
+		shouldMention bool
+	)
+
+	switch m.Content {
+	case "ping":
+		content = "pong"
+	case "pong":
+		content = "ping"
+	case "!shrug":
+		content = "¯\\_(ツ)_/¯"
+	case "!lenny":
+		content = "( ͡° ͜ʖ ͡°)"
+	case "!tableflip":
+		content = "(╯°□°）╯︵ ┻━┻"
+	case "!tablefix":
+		content = "┬─┬ノ( º _ ºノ)"
+	case "!unflip":
+		content = "┬─┬ノ( º _ ºノ)"
+	case "hello":
+		content = fmt.Sprintf("hey, %s", m.Author.Username)
+		shouldReply = true
+	case "!epeen":
+		content = epeen(m)
+		shouldReply = true
+	}
+
+	return m.RespondToChannelOrThread(app, content, shouldReply, shouldMention)
+}
+
+func epeen(m model.Message) string {
+	peepeeSize := 20
+	peepeeCrc := crc64.Checksum([]byte(m.Author.Username+time.Now().Format("2006-01-02")), crc64.MakeTable(crc64.ECMA))
+	peepeeRnd := rand.New(rand.NewSource(int64(peepeeCrc)))
+	return "8" + strings.Repeat("=", peepeeRnd.Intn(peepeeSize)) + "D"
+}
+```
+
+
+Add a case to the switch statement in the simpleHandler function to add a new command.
+The statement should trigger on the command `!weather` and respond with the weather for the location specified in the message.
+The location will be specified as city name. For example, `!weather New York` should return the weather for New York City.
+The weather should be returned as a string in the format `The weather in New York is 72°F and sunny`.
+If the city name is ambiguous, then the weather for the first result should be returned and a warning should be logged and returned to the user.
+If the city name is not found, then a message should be returned to the user saying that the city was not found.
+If the weather API is down, then a message should be returned to the user saying that the weather API is down.
+If the weather API returns an error, then a message should be returned to the user saying that the weather API returned an error.
+The new feature should use the wttr.in API. The documentation for the API can be found here: https://wttr.in/:help
+The wttr.in API is a free API that does not require an API key.
+The wttr.in API is a web API that returns the weather as a string.
+
+
+# Add the !ask command
+
+Goal: Allow users to interact with the OpenAI API to ask questions and get answers via the bot.
+
+Requirements:
+The !ask command should be added to the simpleHandler function.
+The statement should trigger on the command `!ask` and use the OpenAI API to generate a response to the question specified in the message.
+The question will be specified as a string. For example, `!ask What is the meaning of life?` should return a response to the question 'What is the meaning of life?'.
+The response should be returned as a string.
+If the OpenAI API is down, then a message should be returned to the user saying that the OpenAI API is down.
+If the OpenAI API returns an error, then a message should be returned to the user saying that the OpenAI API returned an error.
+Use the Golang OpenAI API client to interact with the OpenAI API. The documentation for the API client can be found here: https://pkg.go.dev/github.com/openai/openai-go/v2
+You will need to handle an API key for the OpenAI API. It will be provided to as an environment variable named `OPENAI_API_KEY`.
+If the statement exceeds the maximum length of 2048 characters, then truncate the response and add a warning to the end of the response.
+Do not use the GPT-4 model. Use the GPT-3.5 model instead.
+
+Output:
+Give me an implementation plan for this new feature but do not write code for it yet.
+
+
+# Add passive coroutine that randomly contributes to the conversation
+
+Goal: Add a passive coroutine that randomly contributes to the conversation.
+
+Requirements:
+The coroutine should run in the background and randomly contribute to the conversation.
+It should contribute once every 100 to 200 messages, on average.
+It should contribute once every 10 to 20 minutes, on average.
+It should use the recent messages in the channel to generate a response.
+It should use the OpenAI API to generate a response to the question specified in the message.
+It may reply to a message or it may reply to the channel. It may not mention anyone.
+
+Thought process:
+- The the coroutine should keep a context of the last few messages in the channel.
+    - It should do this by keeping track of the content of the last 15 minutes of messages.
+    - It should keep no more than 100 messages in the context.
+    - It should keep a unique message context per channel seen.
+    - It should persist these messages as timed entries in a redis cache.
+    - It should use the redis cache to keep track of the last time it contributed to a channel.
+    - The coroutine should randomly decide whether or not to contribute to the conversation.
+    - The coroutine should randomly decide whether or not to reply to a message or reply to the channel.
+    - The coroutine should wait between 100 and 200 messages before contributing to the conversation.
+    - The coroutine should wait between 10 and 20 minutes before contributing to the conversation.
+    - The coroutine should randomly select a message from the context to use as the prompt.
+    - The coroutine must not answer a question that was asked by the bot.
+    - The coroutine must not reply too quickly after a message was sent. It should wait at least 5 seconds.
+
+- The coroutine should generate a response by using the `openaiClient.CreateChatCompletion` function.
+    - The function should use the GPT-3.5 model.
+    - The coroutine should check the length of the response and truncate it if it is too long.
+    - The coroutine should pull its API key from the `OPENAI_API_KEY` environment variable.
+    - The coroutine should be able to have its temperature and max tokens configured via environment variables or chat.
+        - For example, `!babble set temperature 0.5` or `!ask set max tokens 100` will set a redis key for the channel that configures the bot's behavior in that channel.
+        - The default temperature should be 0.5.
+        - The default max tokens should be 100.
+        - The bot's likelihood of responding should be an integer between 1 and 1000. 1 is 0.1% and 1000 is 100%. The default should be 10 (1%).
+        - The bot should not respond if the likelihood is 0.
+        - The bot should check the redis cache to see if the likelihood is 0 before generating a response.
+
+Do not generate any code yet. Give me an implementation plan.
