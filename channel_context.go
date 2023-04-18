@@ -25,9 +25,5 @@ func (c *ChannelContext) AddMessage(channelID, message string) error {
 	if err != nil {
 		return err
 	}
-	err = c.redisClient.LTrim(ctx, key, 0, 99).Err()
-	if err != nil {
-		return err
-	}
 	return c.redisClient.Expire(ctx, key, 15*time.Minute).Err()
 }
