@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/bytebot-chat/gateway-discord/model"
 	"github.com/go-redis/redis/v8"
@@ -23,10 +24,11 @@ func messageRouter(rdb *redis.Client, m model.Message) {
 	channelContext := NewChannelContext(rdb)
 
 	for _, handler := range handlers {
-		channelContext.AddMessage(m.Message.ChannelID, m.Content)
-		log.Debug().
+		channelContext.AddMessage(m)
+		log.Info().
 			Str("func", "messageRouter").
-			Str("key", m.Message.ChannelID).
+			Str("key", m.ChannelID).
+			Str("msg", fmt.Sprintf("<@%s>: %s", m.Author.ID, m.Content)).
 			Msg("Added message to channel context")
 		reply := handler(m)
 		if reply != nil {
