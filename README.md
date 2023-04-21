@@ -4,5 +4,4 @@ It's a silly little bot that does silly little things to demonstrate how to use 
 
 ## Add Bytebot to your Discord server
 
-- [Bytebot](https://discordapp.com/oauth2/authorize?client_id=463619909039964160&scope=bot&
-permissions=0)
+- [Bytebot](https://discordapp.com/oauth2/authorize?client_id=463619909039964160&scope=bot&permissions=0)
