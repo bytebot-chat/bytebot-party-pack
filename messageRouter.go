@@ -37,7 +37,7 @@ func send(ctx context.Context, rdb *redis.Client, reply model.MessageSend) {
 	meta := model.Metadata{
 		ID:     uuid.NewV4(),
 		Source: "party-pack",
-		Dest:   reply.Metadata.Source,
+		Dest:   reply.Metadata.Dest,
 	}
 
 	// Set the message metadata
