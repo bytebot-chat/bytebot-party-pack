@@ -24,10 +24,6 @@ func messageRouter(rdb *redis.Client, m model.Message) {
 
 	for _, handler := range handlers {
 		channelContext.AddMessage(m.Message.ChannelID, m.Content)
-		log.Info().
-			Str("func", "messageRouter").
-			Str("key", m.Message.ChannelID).
-			Msg("Added message to channel context")
 		reply := handler(m)
 		if reply != nil {
 			go send(ctx, rdb, *reply)
@@ -58,7 +54,7 @@ func send(ctx context.Context, rdb *redis.Client, reply model.MessageSend) {
 	}
 
 	// Send the message to redis
-	err = rdb.Publish(ctx, "discord-outbound", jsonReply).Err()
+	err = rdb.Publish(ctx, meta.Dest, jsonReply).Err()
 	if err != nil {
 		log.Err(err).
 			Str("func", "send").
