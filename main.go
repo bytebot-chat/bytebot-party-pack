@@ -13,7 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
+var (
 	topic = "discord-inbound"
 )
 
@@ -24,6 +24,12 @@ func main() {
 	rdb := redisConnect(os.Getenv("REDIS_URL"), context.Background())
 
 	initOpenAIClient()
+
+	if os.Getenv("BYTEBOT_TOPIC") != "" {
+		topic = os.Getenv("BYTEBOT_TOPIC")
+	} else {
+		log.Warn().Msg("BYTEBOT_TOPIC not set, using default topic: discord-inbound")
+	}
 
 	// Create a new pubsub client
 	log.Info().
