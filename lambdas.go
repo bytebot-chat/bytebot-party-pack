@@ -1,16 +1,25 @@
 package main
 
 import (
+	"context"
+
 	"github.com/bwmarrin/discordgo"
+	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog/log"
 )
 
-func messageLogger(topic string, m discordgo.Message) {
-	log.Debug().
-		Str("topic", topic).
-		Str("author", m.Author.Username).
-		Str("content", m.Content).
-		Msg("Received message")
+func pingPongLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordTopicAddr, m discordgo.Message) {
+	if m.Content == "ping" {
+		log.Info().Msg("Pong")
+
+		err := publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), "pong")
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("topic", topic.getReplyTopic()).
+				Msg("Error publishing message")
+		}
+	}
 }
 
 /*

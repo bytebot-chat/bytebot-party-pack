@@ -44,21 +44,47 @@ func main() {
 
 	ch := pubsub.Channel()
 
-	// Create a new message router and register lambdas
-	router := messageRouter{}
-	router.registerLambda(messageLogger)
+	// Set a shared context for all lambdas
+	ctx := context.Background()
+
+	var lambdas = []lambda{
+		pingPongLambda,
+	}
 
 	// Pass the message router to a goroutine that will listen for messages
-	go func(router messageRouter) {
+	go func() {
 		for {
 			// Read message from channel
 			msg := <-ch
-			//log.Debug().Msgf("Received message: %s", msg.Payload)
 
-			// Call our message router with the topic and message
-			router.handle(msg.Channel, msg.Payload)
+			/*
+				log.Debug().
+					Str("func", "main").
+					Str("channel", msg.Channel).
+					Str("payload", msg.Payload).
+					Msg("Received message")
+			*/
+
+			// Unmarshal the message into a discordgo.Message
+			dgoMessage, err := unmarshalDiscordMessage(msg.Payload)
+			if err != nil {
+				log.Error().Err(err).Msg("Error unmarshalling message")
+			}
+
+			// Convert the topic string into a pubsubDiscordTopicAddr struct
+			topicAddr, err := newPubsubDiscordTopicAddr(msg.Channel)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("topic", msg.Channel).
+					Msg("Error converting topic string to pubsubDiscordTopicAddr struct")
+			}
+
+			for _, lambda := range lambdas {
+				go lambda(ctx, rdb, topicAddr, dgoMessage)
+			}
 		}
-	}(router)
+	}()
 
 	// Add a healthcheck endpoint on port 8080
 	log.Info().Msg("Registering healthcheck endpoint")
