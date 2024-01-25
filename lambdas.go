@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/crc64"
-	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -39,7 +39,7 @@ func weatherLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordT
 			log.Warn().Err(err).Str("city", city).Msg("Error fetching weather data")
 			content = fmt.Sprintf("Error fetching weather data for %s: %v", city, err)
 		} else {
-			content = fmt.Sprintf("The weather in %s is %s", city, weather)
+			content = weather
 		}
 	}
 
@@ -112,14 +112,14 @@ func epeen(m discordgo.Message) string {
 }
 
 func getWeather(city string) (string, error) {
-	apiURL := fmt.Sprintf("https://wttr.in/%s?format=%%C|%%t|%%w", url.QueryEscape(city))
+	apiURL := fmt.Sprintf("https://wttr.in/%s?format=2", url.QueryEscape(city)) // format=2 is a preconfigured format for a single line of weather data. 3 and 4 include the city name with ugly + signs as delimiters
 	resp, err := http.Get(apiURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch weather data: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
