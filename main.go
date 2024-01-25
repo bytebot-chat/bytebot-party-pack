@@ -48,7 +48,6 @@ func main() {
 	ctx := context.Background()
 
 	var lambdas = []lambda{
-		pingPongLambda,
 		weatherLambda,
 		reactionsLambda,
 	}
@@ -58,14 +57,6 @@ func main() {
 		for {
 			// Read message from channel
 			msg := <-ch
-
-			/*
-				log.Debug().
-					Str("func", "main").
-					Str("channel", msg.Channel).
-					Str("payload", msg.Payload).
-					Msg("Received message")
-			*/
 
 			// Unmarshal the message into a discordgo.Message
 			dgoMessage, err := unmarshalDiscordMessage(msg.Payload)

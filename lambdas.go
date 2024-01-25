@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/crc64"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -13,43 +13,29 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-redis/redis/v8"
-	"github.com/rs/zerolog/log"
 )
 
-func pingPongLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordTopicAddr, m discordgo.Message) {
-	if m.Content == "ping" {
-		log.Info().Msg("Pong")
-
-		err := publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), "pong")
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("topic", topic.getReplyTopic()).
-				Msg("Error publishing message")
-		}
-	}
-}
-
 func weatherLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordTopicAddr, m discordgo.Message) {
-	var content string
+	var (
+		weather string
+		err     error
+	)
+
 	if strings.HasPrefix(m.Content, "!weather") {
+		var innerErr error
 		city := strings.TrimSpace(strings.TrimPrefix(m.Content, "!weather"))
-		weather, err := getWeather(city)
-		if err != nil {
-			log.Warn().Err(err).Str("city", city).Msg("Error fetching weather data")
-			content = fmt.Sprintf("Error fetching weather data for %s: %v", city, err)
-		} else {
-			content = weather
+		weather, innerErr = getWeather(city)
+		if innerErr != nil {
+			logError(innerErr, "Error fetching weather data", city, "weatherLambda")
+			return
 		}
+
 	}
 
-	err := publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), content)
+	err = publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), weather)
 	if err != nil {
-		log.Error().
-			Str("func", "weatherLambda").
-			Err(err).
-			Str("topic", topic.getReplyTopic()).
-			Msg("Error publishing message")
+		logError(err, "Error publishing message", topic.getReplyTopic(), "weatherLambda")
+		return
 	}
 }
 
@@ -78,11 +64,7 @@ func reactionsLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscor
 
 	err := publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), content)
 	if err != nil {
-		log.Error().
-			Str("func", "reactionsLambda").
-			Err(err).
-			Str("topic", topic.getReplyTopic()).
-			Msg("Error publishing message")
+		logError(err, "Error publishing message", topic.getReplyTopic(), "reactionsLambda")
 	}
 }
 
@@ -115,17 +97,20 @@ func getWeather(city string) (string, error) {
 	apiURL := fmt.Sprintf("https://wttr.in/%s?format=2", url.QueryEscape(city)) // format=2 is a preconfigured format for a single line of weather data. 3 and 4 include the city name with ugly + signs as delimiters
 	resp, err := http.Get(apiURL)
 	if err != nil {
+		logError(err, "Error fetching weather data", city, "getWeather")
 		return "", fmt.Errorf("failed to fetch weather data: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logError(err, "Error reading response body", city, "getWeather")
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
 
 	weather := string(body)
 	if resp.StatusCode != http.StatusOK {
+		logError(err, "Weather API returned an error", city, "getWeather")
 		return "", fmt.Errorf("weather API returned an error: %s", weather)
 	}
 
