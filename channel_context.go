@@ -18,6 +18,9 @@ func NewChannelContext(redisClient *redis.Client) *ChannelContext {
 	}
 }
 
+// Keeps track of the last 100 messages in a channel or the last 15 minutes, whichever is shorter
+// This is used to help provide context to the handlers if they need it
+// It's particularly useful for ChatGPT because it's context sensitive
 func (c *ChannelContext) AddMessage(channelID, message string) error {
 	ctx := context.Background()
 	key := fmt.Sprintf("channel_context:%s", channelID)

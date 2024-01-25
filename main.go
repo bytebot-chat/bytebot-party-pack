@@ -2,74 +2,63 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/alexliesenfeld/health"
-	"github.com/bytebot-chat/gateway-discord/model"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var (
-	topic = "discord-inbound"
-)
+/*
+
+Notes about development:
+- All functions that use an topic and message should have the topic passed as
+  immediately before the message. This makes it easier to reason about
+  not having to remember which is which.
+
+*/
 
 func main() {
+	var (
+		topic = "discord.inbound.*"
+	)
+
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log.Info().Msg("Hello, world!")
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
 	rdb := redisConnect(os.Getenv("REDIS_URL"), context.Background())
 
-	initOpenAIClient()
-
+	// Create a new pubsub client that listens to the topic from BYTEBOT_TOPIC or "discord.inbound.*"
+	log.Info().Msg("Creating new pubsub client")
 	if os.Getenv("BYTEBOT_TOPIC") != "" {
 		topic = os.Getenv("BYTEBOT_TOPIC")
 	} else {
-		log.Warn().Msg("BYTEBOT_TOPIC not set, using default topic: discord-inbound")
+		log.Info().Msg("BYTEBOT_TOPIC not set, using default topic: " + topic)
 	}
 
-	// Create a new pubsub client
-	log.Info().
-		Str("topic", topic).
-		Msg("Subscribing to topic")
-	pubsub := rdb.Subscribe(context.Background(), topic)
+	pubsub := rdb.PSubscribe(context.Background(), topic)
 	defer pubsub.Close()
+	log.Info().Msgf("Subscribed to topic: %s", topic)
 
-	// Create a channel to receive messages
-	log.Info().
-		Str("topic", topic).
-		Msg("Creating channel")
 	ch := pubsub.Channel()
 
-	// Loop forever
-	log.Info().
-		Str("topic", topic).
-		Msg("Starting loop")
-	go func() {
-		for msg := range ch {
-			log.Debug().
-				Str("topic", topic).
-				Str("msg", msg.Payload).
-				Msg("Received message")
+	// Create a new message router and register lambdas
+	router := messageRouter{}
+	router.registerLambda(messageLogger)
 
-			// Unmarshal the message into a model.Message struct
-			var m model.Message
-			err := json.Unmarshal([]byte(msg.Payload), &m)
-			if err != nil {
-				log.Err(err).
-					Str("func", "main").
-					Str("msg", msg.Payload).
-					Msg("Unable to unmarshal message")
-				continue
-			}
+	// Pass the message router to a goroutine that will listen for messages
+	go func(router messageRouter) {
+		for {
+			// Read message from channel
+			msg := <-ch
+			//log.Debug().Msgf("Received message: %s", msg.Payload)
 
-			// Route the message to the appropriate handler
-			messageRouter(rdb, m)
+			// Call our message router with the topic and message
+			router.handle(msg.Channel, msg.Payload)
 		}
-	}()
+	}(router)
 
 	// Add a healthcheck endpoint on port 8080
 	log.Info().Msg("Registering healthcheck endpoint")

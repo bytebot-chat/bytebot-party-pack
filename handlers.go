@@ -1,20 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"hash/crc64"
-	"io/ioutil"
-	"math/rand"
-	"net/http"
-	"net/url"
-	"os"
-	"strings"
-	"time"
-
-	"github.com/bytebot-chat/gateway-discord/model"
+	"github.com/bwmarrin/discordgo"
 	"github.com/rs/zerolog/log"
 )
 
+func messageLogger(topic string, m discordgo.Message) {
+	log.Debug().
+		Str("topic", topic).
+		Str("author", m.Author.Username).
+		Str("content", m.Content).
+		Msg("Received message")
+}
+
+/*
 func simpleHandler(m model.Message) *model.MessageSend {
 	// Send the message back to the channel it came from
 
@@ -103,3 +102,4 @@ func getWeather(city string) (string, error) {
 
 	return weather, nil
 }
+*/
