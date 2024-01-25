@@ -52,7 +52,7 @@ func main() {
 		reactionsLambda,
 	}
 
-	// Pass the message router to a goroutine that will listen for messages
+	// Start a goroutine that will listen for messages
 	go func() {
 		for {
 			// Read message from channel
