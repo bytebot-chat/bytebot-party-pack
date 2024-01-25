@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"hash/crc64"
+	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-redis/redis/v8"
@@ -50,42 +53,8 @@ func weatherLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordT
 	}
 }
 
-/*
-func simpleHandler(m model.Message) *model.MessageSend {
-	// Send the message back to the channel it came from
-
-	var (
-		app           string = "party-pack"
-		content       string
-		shouldReply   bool
-		shouldMention bool
-	)
-
-	if strings.HasPrefix(m.Content, "!weather") {
-		city := strings.TrimSpace(strings.TrimPrefix(m.Content, "!weather"))
-		weather, err := getWeather(city)
-		if err != nil {
-			log.Warn().Err(err).Str("city", city).Msg("Error fetching weather data")
-			content = fmt.Sprintf("Error fetching weather data for %s: %v", city, err)
-		} else {
-			content = fmt.Sprintf("The weather in %s is %s", city, weather)
-		}
-		return m.RespondToChannelOrThread(app, content, true, false)
-	}
-
-	if strings.HasPrefix(strings.ToLower(m.Content), fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))) {
-		prefix := fmt.Sprintf("hey <@%s", os.Getenv("BOT_DISCORD_ID"))
-		question := strings.TrimSpace(strings.TrimPrefix(m.Content, prefix))
-		answer, err := handleAskCommand(question)
-		if err != nil {
-			content = "Error: " + err.Error()
-		} else {
-			content = answer
-		}
-		shouldReply = true
-		return m.RespondToChannelOrThread(app, content, true, false)
-	}
-
+func reactionsLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordTopicAddr, m discordgo.Message) {
+	var content string
 	switch m.Content {
 	case "ping":
 		content = "pong"
@@ -101,24 +70,46 @@ func simpleHandler(m model.Message) *model.MessageSend {
 		content = "┬─┬ノ( º _ ºノ)"
 	case "!unflip":
 		content = "┬─┬ノ( º _ ºノ)"
-	case "hello":
-		content = fmt.Sprintf("hey, %s", m.Author.Username)
-		shouldReply = true
+	case "hello", "hi", "hey", "howdy", "sup", "yo", "hiya", "anyong", "bonjour", "salut", "hallo", "moin":
+		content = sayHello(m.Author.Username)
 	case "!epeen":
 		content = epeen(m)
-		shouldReply = true
 	}
 
-	return m.RespondToChannelOrThread(app, content, shouldReply, shouldMention)
+	err := publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), content)
+	if err != nil {
+		log.Error().
+			Str("func", "reactionsLambda").
+			Err(err).
+			Str("topic", topic.getReplyTopic()).
+			Msg("Error publishing message")
+	}
 }
 
-func epeen(m model.Message) string {
+func sayHello(username string) string {
+	greeting := []string{
+		"hi",
+		"hello",
+		"hey",
+		"howdy",
+		"sup",
+		"yo",
+		"hiya",
+		"anyong",
+		"bonjour",
+		"salut",
+		"hallo",
+		"moin",
+	}
+	return fmt.Sprintf("%s %s", greeting[rand.Intn(len(greeting))], username)
+}
+
+func epeen(m discordgo.Message) string {
 	peepeeSize := 20
 	peepeeCrc := crc64.Checksum([]byte(m.Author.Username+time.Now().Format("2006-01-02")), crc64.MakeTable(crc64.ECMA))
 	peepeeRnd := rand.New(rand.NewSource(int64(peepeeCrc)))
 	return "8" + strings.Repeat("=", peepeeRnd.Intn(peepeeSize)) + "D"
 }
-*/
 
 func getWeather(city string) (string, error) {
 	apiURL := fmt.Sprintf("https://wttr.in/%s?format=%%C|%%t|%%w", url.QueryEscape(city))
@@ -128,7 +119,7 @@ func getWeather(city string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response body: %v", err)
 	}
