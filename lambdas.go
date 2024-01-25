@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/go-redis/redis/v8"
@@ -19,6 +24,29 @@ func pingPongLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscord
 				Str("topic", topic.getReplyTopic()).
 				Msg("Error publishing message")
 		}
+	}
+}
+
+func weatherLambda(ctx context.Context, rdb *redis.Client, topic *pubsubDiscordTopicAddr, m discordgo.Message) {
+	var content string
+	if strings.HasPrefix(m.Content, "!weather") {
+		city := strings.TrimSpace(strings.TrimPrefix(m.Content, "!weather"))
+		weather, err := getWeather(city)
+		if err != nil {
+			log.Warn().Err(err).Str("city", city).Msg("Error fetching weather data")
+			content = fmt.Sprintf("Error fetching weather data for %s: %v", city, err)
+		} else {
+			content = fmt.Sprintf("The weather in %s is %s", city, weather)
+		}
+	}
+
+	err := publishDiscordMessage(ctx, rdb, topic.getReplyTopic(), content)
+	if err != nil {
+		log.Error().
+			Str("func", "weatherLambda").
+			Err(err).
+			Str("topic", topic.getReplyTopic()).
+			Msg("Error publishing message")
 	}
 }
 
@@ -90,6 +118,7 @@ func epeen(m model.Message) string {
 	peepeeRnd := rand.New(rand.NewSource(int64(peepeeCrc)))
 	return "8" + strings.Repeat("=", peepeeRnd.Intn(peepeeSize)) + "D"
 }
+*/
 
 func getWeather(city string) (string, error) {
 	apiURL := fmt.Sprintf("https://wttr.in/%s?format=%%C|%%t|%%w", url.QueryEscape(city))
@@ -111,4 +140,3 @@ func getWeather(city string) (string, error) {
 
 	return weather, nil
 }
-*/

@@ -49,6 +49,7 @@ func main() {
 
 	var lambdas = []lambda{
 		pingPongLambda,
+		weatherLambda,
 	}
 
 	// Pass the message router to a goroutine that will listen for messages
