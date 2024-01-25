@@ -17,6 +17,8 @@ Notes about development:
 - All functions that use an topic and message should have the topic passed as
   immediately before the message. This makes it easier to reason about
   not having to remember which is which.
+- Try to use handleError() as much as possible to reduce the amount of
+  boilerplate code.
 
 */
 
